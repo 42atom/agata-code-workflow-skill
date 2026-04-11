@@ -30,7 +30,7 @@
 
 统一格式：
 
-`<kind><id-NNNN>.<state>.<board>.<slug>[.<prio>].md`
+`<kind><id-NNNN|NNNNN>.<state>.<board>.<slug>[.<prio>].md`
 
 kind：
 
@@ -54,6 +54,7 @@ state：
 规则：
 
 - `id` 永远在最前
+- `id` 支持 4 位或 5 位数字；现有 4 位文件无需迁移
 - `board` 用模块短词或场景码
 - `slug` 只允许 `[a-z0-9-]`
 - owner / 时间 / 原因进 front matter，不进文件名
@@ -94,6 +95,7 @@ handle,owner,engine,role,status,updated_at,note
 - `status` 只用 `online` / `offline`
 - `status` 只作参考，不作自动化门禁
 - 长时间未更新的状态视为不可靠
+- helper `check` 可对 stale online 行报警，但不阻断流程
 
 ## 6. 历史记忆层
 
@@ -121,6 +123,12 @@ handle,owner,engine,role,status,updated_at,note
 - `none` = 不要求进入项目历史记忆
 - `required` = 关闭前必须写入 `refs/project-memory-aaak.md`
 - `done` = 已写入项目历史记忆，且记忆文件必须能回指该任务
+
+记忆锚点：
+
+- 对带 `memory: required | done` 的任务，记忆文件必须显式写 `锚: tkNNNN` 或 `锚: tkNNNNN`
+- 只认稳定 id 锚点，不认正文里偶然出现一次的 task id
+
 ## 7. 状态与评审规则
 
 任务主流状态：
@@ -170,15 +178,21 @@ review 命名规则：
 
 没有这三项，不算真正进入 review。
 
+补充：
+
+- `accept` / `code_version` / `verify` 不能为空值
+- `verify` 是验证口径或命令，不是“已测试”这类空话
+- `rvw` 任务至少要挂一个有效 `rp` 证据链接
+
 ## 9. 提交规范
 
 commit：
 
-`{action}({board}): {slug}  [tkNNNN]`
+`{action}({board}): {slug}  [tkNNNN]` 或 `{action}({board}): {slug}  [tkNNNNN]`
 
 branch：
 
-`{state}/{tkNNNN}-{slug}`
+`{state}/{tkNNNN}-{slug}` 或 `{state}/{tkNNNNN}-{slug}`
 
 action：
 
@@ -195,7 +209,7 @@ action：
 
 规则：
 
-- 有 task 就必须带 `[tkNNNN]`
+- 有 task 就必须带 `[tkNNNN]` 或 `[tkNNNNN]`
 - `board` 必须和任务文件第三槽一致
 - 需要验收时在 commit body 追加 `Reviewed-by`
 

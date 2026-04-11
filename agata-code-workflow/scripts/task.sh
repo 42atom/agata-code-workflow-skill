@@ -6,10 +6,16 @@ set -euo pipefail
 
 VALID_STATES="tdo doi rvw pss dne bkd cand arvd"
 VALID_MEMORY_MODES="none required done"
+STALE_COAUTHOR_SECONDS=86400
+ID_DIGITS_RE='[0-9]{4,5}'
 
 die() {
   echo "error: $*" >&2
   exit 1
+}
+
+warn() {
+  echo "warning: $*" >&2
 }
 
 is_valid_state() {
@@ -46,15 +52,15 @@ find_project_root() {
 
 normalize_task_id() {
   local raw="$1"
-  if [[ "$raw" =~ ^[0-9]{4}$ ]]; then
+  if [[ "$raw" =~ ^${ID_DIGITS_RE}$ ]]; then
     echo "tk${raw}"
     return 0
   fi
-  if [[ "$raw" =~ ^tk[0-9]{4}$ ]]; then
+  if [[ "$raw" =~ ^tk${ID_DIGITS_RE}$ ]]; then
     echo "$raw"
     return 0
   fi
-  die "task id must be 4 digits or tkNNNN"
+  die "task id must be 4 or 5 digits, or tkNNNN / tkNNNNN"
 }
 
 find_task_file() {
@@ -176,7 +182,21 @@ memory_entry_exists() {
 
   memory_file="$(project_memory_file "$root")"
   [[ -f "$memory_file" ]] || return 1
-  grep -Eq "(^|[^[:alnum:]_-])${task_id}([^[:alnum:]_-]|$)" "$memory_file"
+  awk -v wanted="$task_id" '
+    /^锚:[[:space:]]*/ {
+      line = $0
+      sub(/^锚:[[:space:]]*/, "", line)
+      gsub(/[|,]/, " ", line)
+      count = split(line, items, /[[:space:]]+/)
+      for (i = 1; i <= count; i++) {
+        if (items[i] == wanted) {
+          found = 1
+          exit
+        }
+      }
+    }
+    END { exit found ? 0 : 1 }
+  ' "$memory_file"
 }
 
 assert_memory_gate_for_close() {
@@ -197,7 +217,7 @@ assert_memory_gate_for_close() {
   is_valid_memory_mode "$memory_mode" || die "invalid memory mode: $file -> $memory_mode"
 
   task_id="$(task_id_from_file "$file")"
-  memory_entry_exists "$root" "$task_id" || die "missing project memory entry for ${task_id}: $(project_memory_file "$root")"
+  memory_entry_exists "$root" "$task_id" || die "missing project memory anchor for ${task_id}: $(project_memory_file "$root")"
 }
 
 print_usage() {
@@ -214,15 +234,15 @@ EOF
 
 normalize_doc_id() {
   local raw="$1"
-  if [[ "$raw" =~ ^[0-9]{4}$ ]]; then
+  if [[ "$raw" =~ ^${ID_DIGITS_RE}$ ]]; then
     echo "tk${raw}"
     return 0
   fi
-  if [[ "$raw" =~ ^(tk|pl|rs|rf|rp)[0-9]{4}$ ]]; then
+  if [[ "$raw" =~ ^(tk|pl|rs|rf|rp)${ID_DIGITS_RE}$ ]]; then
     echo "$raw"
     return 0
   fi
-  die "id must be 4 digits or {tk|pl|rs|rf|rp}NNNN"
+  die "id must be 4 or 5 digits, or {tk|pl|rs|rf|rp}NNNN / {tk|pl|rs|rf|rp}NNNNN"
 }
 
 find_doc_file() {
@@ -234,8 +254,8 @@ find_doc_file() {
     matches+=("$path")
   done < <(
     {
-      find "$root/issues" -maxdepth 1 -type f -name "${doc_id}.*.md" 2>/dev/null
-      find "$root/docs/reviews" -maxdepth 1 -type f -name "${doc_id}.*.md" 2>/dev/null
+      find "$root/issues" -type f -name "${doc_id}.*.md" 2>/dev/null
+      find "$root/docs/reviews" -type f -name "${doc_id}.*.md" 2>/dev/null
     } | sort
   )
 
@@ -335,12 +355,21 @@ check_duplicate_task_ids() {
 
 check_rvw_fields() {
   local root="$1"
-  local file
+  local file accept code_version verify
 
   while IFS= read -r file; do
     grep -q '^accept:' "$file" || die "missing accept: $file"
     grep -q '^code_version:' "$file" || die "missing code_version: $file"
     grep -q '^verify:' "$file" || die "missing verify: $file"
+
+    accept="$(extract_frontmatter_scalar "$file" "accept")"
+    code_version="$(extract_frontmatter_scalar "$file" "code_version")"
+    verify="$(extract_frontmatter_scalar "$file" "verify")"
+
+    [[ ! "$accept" =~ ^[[:space:]]*$ ]] || die "empty accept: $file"
+    [[ ! "$code_version" =~ ^[[:space:]]*$ ]] || die "empty code_version: $file"
+    [[ ! "$verify" =~ ^[[:space:]]*$ ]] || die "empty verify: $file"
+    task_has_rp_link "$root" "$file" || die "rvw task missing rp link: $file"
   done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.rvw.*.md' | sort)
 }
 
@@ -352,7 +381,7 @@ check_rp_names() {
 
   while IFS= read -r file; do
     base="$(basename "$file")"
-    [[ "$base" =~ ^rp[0-9]{4}\.(tdo|doi|rvw|pss|dne|bkd|cand|arvd)\.[a-z0-9-]+\.(review-r[0-9]+-[a-z0-9-]+|reply-r[0-9]+-[a-z0-9-]+)\.md$ ]] \
+    [[ "$base" =~ ^rp${ID_DIGITS_RE}\.(tdo|doi|rvw|pss|dne|bkd|cand|arvd)\.[a-z0-9-]+\.(review-r[0-9]+-[a-z0-9-]+|reply-r[0-9]+-[a-z0-9-]+)\.md$ ]] \
       || die "invalid review filename: $file"
   done < <(find "$root/docs/reviews" -maxdepth 1 -type f -name '*.md' | sort)
 }
@@ -416,12 +445,29 @@ normalize_link_target() {
     return 0
   fi
 
-  if [[ "$target" =~ ^rp[0-9]{4}\..*\.md$ ]]; then
+  if [[ "$target" =~ ^rp${ID_DIGITS_RE}\..*\.md$ ]]; then
     echo "$root/docs/reviews/$target"
     return 0
   fi
 
   echo "$root/$target"
+}
+
+task_has_rp_link() {
+  local root="$1"
+  local file="$2"
+  local raw_link normalized base
+
+  while IFS= read -r raw_link; do
+    normalized="$(normalize_link_target "$root" "$raw_link")"
+    base="$(basename "$normalized")"
+
+    if [[ "$base" =~ ^rp${ID_DIGITS_RE}\..*\.md$ ]]; then
+      return 0
+    fi
+  done < <(extract_frontmatter_links "$file")
+
+  return 1
 }
 
 check_tk_rp_links_exist() {
@@ -433,7 +479,7 @@ check_tk_rp_links_exist() {
       normalized="$(normalize_link_target "$root" "$raw_link")"
       base="$(basename "$normalized")"
 
-      if [[ ! "$base" =~ ^rp[0-9]{4}\..*\.md$ ]]; then
+      if [[ ! "$base" =~ ^rp${ID_DIGITS_RE}\..*\.md$ ]]; then
         continue
       fi
 
@@ -463,8 +509,69 @@ check_project_memory_links() {
     fi
 
     task_id="$(task_id_from_file "$file")"
-    memory_entry_exists "$root" "$task_id" || die "missing project memory entry for ${task_id}: $(project_memory_file "$root")"
+    memory_entry_exists "$root" "$task_id" || die "missing project memory anchor for ${task_id}: $(project_memory_file "$root")"
   done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.md' | sort)
+}
+
+timestamp_to_epoch() {
+  local raw="$1"
+  local bsd_raw="$raw"
+
+  if [[ "$bsd_raw" =~ ^(.+)([+-][0-9]{2}):([0-9]{2})$ ]]; then
+    bsd_raw="${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}"
+  elif [[ "$bsd_raw" =~ Z$ ]]; then
+    bsd_raw="${bsd_raw%Z}+0000"
+  fi
+
+  if date -j -f "%Y-%m-%dT%H:%M:%S%z" "$bsd_raw" "+%s" >/dev/null 2>&1; then
+    date -j -f "%Y-%m-%dT%H:%M:%S%z" "$bsd_raw" "+%s"
+    return 0
+  fi
+
+  if date -d "$raw" "+%s" >/dev/null 2>&1; then
+    date -d "$raw" "+%s"
+    return 0
+  fi
+
+  return 1
+}
+
+check_coauthors_staleness() {
+  local root="$1"
+  local coauthors_file now line_no handle owner engine role status updated_at note updated_epoch age
+
+  coauthors_file="$root/coauthors.csv"
+  [[ -f "$coauthors_file" ]] || return 0
+
+  now="$(date +%s)"
+  line_no=0
+
+  while IFS=, read -r handle owner engine role status updated_at note; do
+    line_no=$((line_no + 1))
+
+    if [[ "$line_no" -eq 1 ]]; then
+      continue
+    fi
+
+    if [[ -z "$handle$status$updated_at" || "$status" != "online" ]]; then
+      continue
+    fi
+
+    if [[ -z "$updated_at" ]]; then
+      warn "stale online coauthor without updated_at: ${handle} (${coauthors_file}:${line_no})"
+      continue
+    fi
+
+    if ! updated_epoch="$(timestamp_to_epoch "$updated_at")"; then
+      warn "invalid coauthor timestamp: ${handle} -> ${updated_at} (${coauthors_file}:${line_no})"
+      continue
+    fi
+
+    age=$((now - updated_epoch))
+    if (( age > STALE_COAUTHOR_SECONDS )); then
+      warn "stale online coauthor: ${handle} last updated ${updated_at}"
+    fi
+  done < "$coauthors_file"
 }
 
 cmd_check() {
@@ -476,6 +583,7 @@ cmd_check() {
   check_tk_rp_links_exist "$root"
   check_legacy_reply_chains "$root"
   check_project_memory_links "$root"
+  check_coauthors_staleness "$root"
   echo "ok"
 }
 

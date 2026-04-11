@@ -60,27 +60,32 @@ This repo also ships a thin workflow helper:
 
 It is intentionally small. It does not store task state anywhere else.
 
+Document ids support 4 or 5 digits. Existing 4-digit ids remain valid.
+
 Current commands:
 
 ```bash
 ./agata-code-workflow/scripts/task.sh ls [state]
-./agata-code-workflow/scripts/task.sh find rp0001
-./agata-code-workflow/scripts/task.sh show 0061
-./agata-code-workflow/scripts/task.sh move 0061 doi
-./agata-code-workflow/scripts/task.sh archive 0061
+./agata-code-workflow/scripts/task.sh find rp10061
+./agata-code-workflow/scripts/task.sh show 10061
+./agata-code-workflow/scripts/task.sh move 10061 doi
+./agata-code-workflow/scripts/task.sh archive 10061
 ./agata-code-workflow/scripts/task.sh check
 ```
 
 What it does:
 
 - list task files
-- resolve the current path set for a stable document id
+- resolve the current or archived path set for a stable document id
 - show the current `tk` file
 - rename a `tk` file across legal states
 - move `arvd` tasks into `issues/archive/YYYY/`
 - validate basic workflow invariants
 - validate that declared `rp` links in `tk.links` actually exist
-- gate `memory: required|done` tasks against `refs/project-memory-aaak.md`
+- require non-empty `accept` / `code_version` / `verify` on `rvw` tasks
+- require at least one linked `rp` evidence record on `rvw` tasks
+- gate `memory: required|done` tasks against `refs/project-memory-aaak.md` via `锚: tkNNNN` or `锚: tkNNNNN`
+- warn on stale online `coauthors.csv` rows
 
 Review note:
 
@@ -135,6 +140,12 @@ memory: required
 
 then it must be recorded in `refs/project-memory-aaak.md` before it closes into `dne` / `arvd`.
 
+Recommended anchor shape:
+
+```text
+锚: tk10061
+```
+
 ## Recommended Project Setup
 
 ```text
@@ -159,6 +170,7 @@ When work touches any of the following, use that skill:
 
 - `issues/`
 - `docs/reviews/`
+- `refs/project-memory-aaak.md`
 - `operator-checklist-*`
 - `coauthors.csv`
 - filename-based task state transitions
@@ -180,6 +192,7 @@ Apply it whenever you:
 - create or rename `tk` / `pl` / `rs` / `rp` files
 - move a task between `tdo` / `doi` / `rvw` / `dne`
 - create review records under `docs/reviews/`
+- maintain `refs/project-memory-aaak.md`
 - validate `coauthors.csv`
 
 Do not create a second state system. The filename state slot is the truth source.

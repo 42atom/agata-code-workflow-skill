@@ -195,6 +195,7 @@ Recommended fields:
 ```text
 题
 时
+锚
 决
 因
 链
@@ -206,6 +207,7 @@ Meaning:
 
 - `决`: what changed
 - `因`: why it changed
+- `锚`: stable task anchor such as `tk0061`
 - `链`: relation to earlier or later notes
 - `评`: present status or interpretation
 
@@ -214,6 +216,7 @@ Example:
 ```text
 题: workflow-review-model
 时: 2026-04-11
+锚: tk0061
 决: review 文档改为 task-first + rN
 因: re.re 命名链过深且不利于 grep
 链: follows=旧 docs/opus-feedback 流
@@ -226,6 +229,7 @@ More compressed variant:
 ```text
 题: 评审制式迁移
 时: 2026-04-11
+锚: tk0061
 决: review 改 task-first+rN
 因: re.re 过深|grep 不利
 链: follows=旧 docs/opus-feedback 流
