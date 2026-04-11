@@ -3,1020 +3,733 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>__AGATA_PROJECT_NAME__ Progress View</title>
+    <title>__AGATA_PROJECT_NAME__ | Agata Progress</title>
     <style>
       :root {
-        --bg: #f3f0e8;
-        --panel: rgba(255, 255, 253, 0.88);
-        --panel-strong: #fffdf8;
-        --line: #d6d0c3;
-        --line-strong: #bdb4a1;
-        --ink: #171717;
-        --muted: #645d52;
-        --accent: #1b4332;
-        --accent-soft: rgba(27, 67, 50, 0.12);
-        --todo: #6b5b48;
-        --active: #1d4ed8;
-        --review: #9a3412;
-        --blocked: #b91c1c;
-        --pass: #047857;
-        --done: #0f766e;
-        --cancelled: #7c3aed;
-        --archive: #475569;
-        --shadow: 0 8px 30px rgba(33, 28, 20, 0.08);
-        --radius: 12px;
-        --font-sans: "IBM Plex Sans", "Avenir Next", "Segoe UI Variable", "Helvetica Neue", sans-serif;
-        --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
+        /* Colors - Linear Light Vibes */
+        --bg-main: #ffffff;
+        --bg-side: #f7f7f8;
+        --bg-hover: #f1f1f3;
+        --border-quiet: #e1e1e3;
+        --border-strong: #d1d1d4;
+
+        --text-main: #121212;
+        --text-muted: #6a6a6e;
+        --text-quiet: #9b9ba1;
+
+        --accent: #006adc;
+        --accent-soft: #e5f1ff;
+
+        /* Status Colors */
+        --color-todo: #9b9ba1;
+        --color-active: #006adc;
+        --color-review: #7c3aed;
+        --color-blocked: #f97316;
+        --color-pass: #059669;
+        --color-done: #10b981;
+        --color-cancelled: #6b7280;
+
+        /* Layout - Vertical High Density */
+        --nav-height: 48px;
+        --toolbar-height: 40px;
+        --metrics-height: 28px;
+        --radius-sm: 4px;
+
+        /* Typography */
+        --font-sans: "Inter", "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+        --font-mono: "SF Mono", "IBMPlexMono", Menlo, monospace;
       }
 
-      * {
-        box-sizing: border-box;
-      }
-
-      html,
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        background:
-          radial-gradient(circle at top left, rgba(27, 67, 50, 0.09), transparent 22%),
-          linear-gradient(180deg, #f5f1ea 0%, #f1ede5 100%);
-        color: var(--ink);
         font-family: var(--font-sans);
-      }
-
-      body {
-        min-height: 100vh;
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      .shell {
-        padding: 10px 12px 14px;
-      }
-
-      .topbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-        gap: 10px;
-        align-items: start;
-        margin-bottom: 8px;
-      }
-
-      .hero,
-      .top-metrics,
-      .panel,
-      .table-panel {
-        border: 1px solid var(--line);
-        background: var(--panel);
-        border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        backdrop-filter: blur(12px);
-      }
-
-      .hero {
-        padding: 12px 12px 10px;
-        position: relative;
+        background: var(--bg-main);
+        color: var(--text-main);
+        height: 100vh;
         overflow: hidden;
-      }
-
-      .hero::before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 5px;
-        background: linear-gradient(180deg, #1b4332 0%, #c86b31 100%);
-      }
-
-      .eyebrow {
-        font-size: 10px;
-        line-height: 1;
-        text-transform: uppercase;
-        letter-spacing: 0.18em;
-        color: var(--muted);
-        margin-bottom: 8px;
-        padding-left: 8px;
-      }
-
-      .hero h1 {
-        margin: 0;
-        padding-left: 8px;
-        font-size: 24px;
-        line-height: 1.05;
-        font-weight: 700;
-        letter-spacing: -0.03em;
-      }
-
-      .hero-meta {
-        padding-left: 8px;
-        margin-top: 8px;
         display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        font-size: 11px;
-        color: var(--muted);
+        flex-direction: column;
+        font-size: 13px;
       }
 
-      .chip {
-        display: inline-flex;
+      /* Navbar (Title + Main Menu) */
+      .navbar {
+        height: var(--nav-height);
+        display: flex;
         align-items: center;
-        gap: 4px;
-        padding: 3px 7px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.78);
-        white-space: nowrap;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border-quiet);
+        background: var(--bg-main);
+        gap: 32px;
+        z-index: 100;
+        flex-shrink: 0;
       }
 
-      .top-metrics {
-        padding: 8px;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
       }
 
-      .metric {
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--panel-strong);
-        padding: 7px 8px 6px;
-        min-height: 58px;
+      .project-name {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
       }
 
-      .metric-label {
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.12em;
-        color: var(--muted);
+      .main-menu {
+        display: flex;
+        gap: 8px;
       }
 
-      .metric-value {
-        margin-top: 4px;
-        font-family: var(--font-mono);
-        font-size: 19px;
-        line-height: 1;
-        font-weight: 600;
-      }
-
-      .metric-sub {
-        margin-top: 4px;
-        font-size: 10px;
-        color: var(--muted);
-      }
-
-      .tabs {
-        display: inline-flex;
-        gap: 4px;
-        margin-bottom: 8px;
-        padding: 4px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: rgba(255, 255, 252, 0.7);
-      }
-
-      .tab {
-        border: 0;
-        border-radius: 999px;
-        padding: 7px 12px 6px;
-        background: transparent;
-        color: var(--muted);
-        font-size: 12px;
-        font-weight: 600;
+      .menu-item {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-muted);
         cursor: pointer;
+        padding: 4px 10px;
+        border-radius: var(--radius-sm);
+        transition: color 0.1s, background 0.1s;
       }
 
-      .tab.active {
-        background: #171717;
-        color: #fbfaf6;
-      }
+      .menu-item:hover { color: var(--text-main); background: var(--bg-hover); }
+      .menu-item.active { color: var(--accent); background: var(--accent-soft); }
 
-      .tab-panel {
-        display: none;
-      }
-
-      .tab-panel.active {
-        display: block;
-      }
-
-      .dense-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.95fr);
-        gap: 10px;
-        align-items: start;
-      }
-
-      .panel,
-      .table-panel {
-        padding: 8px;
-      }
-
-      .stack {
-        display: grid;
-        gap: 8px;
-      }
-
-      .section-head {
+      /* Toolbar (Tabs + Search) */
+      .toolbar {
+        height: var(--toolbar-height);
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 8px;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border-quiet);
+        background: var(--bg-side);
+        gap: 12px;
+        flex-shrink: 0;
       }
 
-      .section-title {
+      .sub-tabs {
+        display: flex;
+        gap: 2px;
+        background: #e1e1e3;
+        padding: 2px;
+        border-radius: var(--radius-sm);
+      }
+
+      .sub-tab {
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-radius: 3px;
+        cursor: pointer;
+        background: transparent;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .sub-tab:hover { color: var(--text-main); }
+      .sub-tab.active { background: var(--bg-main); color: var(--text-main); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+      .tab-badge {
+        font-size: 10px;
+        font-weight: 400;
+        color: var(--text-quiet);
+        background: rgba(0,0,0,0.05);
+        padding: 0 4px;
+        border-radius: 2px;
+        line-height: normal;
+      }
+
+      .sub-tab.active .tab-badge {
+        background: var(--bg-hover);
+        color: var(--text-muted);
+      }
+
+      .search-container {
+        position: relative;
+        width: 240px;
+        margin-left: auto;
+      }
+
+      .search-input {
+        width: 100%;
+        padding: 4px 8px 4px 26px;
+        background: var(--bg-main);
+        border: 1px solid var(--border-quiet);
+        border-radius: var(--radius-sm);
         font-size: 12px;
-        font-weight: 700;
+        outline: none;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 8px; top: 50%; transform: translateY(-50%);
+        width: 12px; height: 12px; color: var(--text-quiet);
+      }
+
+      /* Metrics Bar */
+      .metrics-bar {
+        height: var(--metrics-height);
+        background: var(--bg-main);
+        border-bottom: 1px solid var(--border-quiet);
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        gap: 16px;
+        flex-shrink: 0;
+        overflow-x: auto;
+      }
+
+      .metric-item {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--text-quiet);
+        text-transform: uppercase;
         letter-spacing: 0.02em;
       }
 
-      .section-note {
-        font-size: 10px;
-        color: var(--muted);
-      }
-
-      .state-strip,
-      .board-strip,
-      .micro-list {
-        display: grid;
-        gap: 6px;
-      }
-
-      .state-strip {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-      }
-
-      .state-card {
-        padding: 7px 8px;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: var(--panel-strong);
-      }
-
-      .state-top {
-        display: flex;
-        justify-content: space-between;
-        gap: 6px;
-        align-items: baseline;
-      }
-
-      .state-label {
-        font-size: 11px;
-        color: var(--muted);
-      }
-
-      .state-count {
+      .metric-value {
+        font-weight: 700;
         font-family: var(--font-mono);
-        font-size: 18px;
-        line-height: 1;
-      }
-
-      .tone-todo .state-count,
-      .badge.tone-todo {
-        color: var(--todo);
-      }
-
-      .tone-active .state-count,
-      .badge.tone-active {
-        color: var(--active);
-      }
-
-      .tone-review .state-count,
-      .badge.tone-review {
-        color: var(--review);
-      }
-
-      .tone-blocked .state-count,
-      .badge.tone-blocked {
-        color: var(--blocked);
-      }
-
-      .tone-pass .state-count,
-      .badge.tone-pass {
-        color: var(--pass);
-      }
-
-      .tone-done .state-count,
-      .badge.tone-done {
-        color: var(--done);
-      }
-
-      .tone-cancelled .state-count,
-      .badge.tone-cancelled {
-        color: var(--cancelled);
-      }
-
-      .tone-archive .state-count,
-      .badge.tone-archive {
-        color: var(--archive);
-      }
-
-      .board-row,
-      .mini-row,
-      .timeline-row {
-        display: grid;
-        gap: 6px;
-        align-items: start;
-        padding: 6px 7px;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.82);
-      }
-
-      .board-row {
-        grid-template-columns: minmax(0, 1fr) auto;
-      }
-
-      .mini-row {
-        grid-template-columns: auto minmax(0, 1fr);
-      }
-
-      .mini-kicker {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--muted);
-      }
-
-      .mini-main {
-        min-width: 0;
-      }
-
-      .mini-title {
+        color: var(--text-main);
         font-size: 11px;
-        font-weight: 600;
-        line-height: 1.25;
       }
 
-      .mini-sub {
-        margin-top: 2px;
-        font-size: 10px;
-        color: var(--muted);
-        line-height: 1.3;
+      /* Content Area */
+      .content-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0 16px 40px;
       }
 
-      .table-panel {
-        overflow: hidden;
-      }
-
-      .table-wrap {
-        overflow: auto;
-        border-radius: 10px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.85);
-      }
-
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 980px;
-      }
-
-      thead th {
+      .group-header {
         position: sticky;
         top: 0;
-        z-index: 2;
-        background: rgba(246, 242, 232, 0.96);
-        border-bottom: 1px solid var(--line-strong);
-        padding: 7px 8px;
-        text-align: left;
-        font-size: 10px;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        color: var(--muted);
-      }
-
-      tbody td {
-        padding: 7px 8px;
-        border-top: 1px solid rgba(214, 208, 195, 0.75);
-        vertical-align: top;
-        font-size: 11px;
-        line-height: 1.34;
-      }
-
-      tbody tr:hover {
-        background: rgba(27, 67, 50, 0.05);
-      }
-
-      .mono {
-        font-family: var(--font-mono);
-      }
-
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 10px;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 999px;
-        border: 1px solid currentColor;
-        background: rgba(255, 255, 255, 0.8);
-        white-space: nowrap;
-      }
-
-      .text-stack {
-        display: grid;
-        gap: 3px;
-        min-width: 0;
-      }
-
-      .primary-line {
+        background: var(--bg-main);
+        padding: 8px 0 4px;
         font-size: 11px;
         font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 1px solid var(--border-quiet);
+        margin-bottom: 1px;
+        z-index: 5;
         display: flex;
         gap: 6px;
-        flex-wrap: wrap;
         align-items: center;
       }
 
-      .secondary-line,
-      .tertiary-line {
-        font-size: 10px;
-        color: var(--muted);
+      .group-count { font-weight: 400; color: var(--text-quiet); }
+
+      .issue-list { display: flex; flex-direction: column; }
+
+      .issue-row {
+        display: grid;
+        grid-template-columns: 18px 74px minmax(0, 1fr) 84px minmax(150px, auto) 100px;
+        gap: 10px;
+        align-items: center;
+        padding: 3px 6px;
+        border-bottom: 1px solid rgba(225, 225, 227, 0.4);
+        cursor: pointer;
+        transition: background 0.05s;
+        min-height: 36px;
+        font-size: 12px;
       }
 
-      .tight-chips {
+      .issue-row:hover { background: var(--bg-hover); }
+
+      .issue-status-icon {
+        width: 14px; height: 14px;
+        display: flex; align-items: center; justify-content: center;
+      }
+
+      .issue-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-quiet); }
+
+      .issue-content {
+        min-width: 0;
         display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
+        flex-direction: column;
+        gap: 2px;
       }
 
-      .tight-chip {
-        display: inline-flex;
+      .issue-mainline {
+        min-width: 0;
+        display: flex;
         align-items: center;
-        padding: 2px 6px;
-        border-radius: 999px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.9);
-        font-size: 10px;
-        color: var(--muted);
+        gap: 6px;
+      }
+
+      .issue-detailline {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+
+      .issue-title {
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 34ch;
+        flex-shrink: 1;
+      }
+      .issue-summary-sep { color: var(--text-quiet); padding: 0 2px; font-weight: 300; opacity: 0.6; }
+
+      .issue-summary {
+        color: var(--text-quiet);
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        flex: 1;
+      }
+
+      .issue-board {
+        font-size: 10px; color: var(--text-quiet); padding: 1px 4px;
+        background: var(--bg-side); border-radius: var(--radius-sm);
+        border: 1px solid var(--border-quiet);
+      }
+
+      .issue-meta {
+        color: var(--text-quiet);
+        display: flex; gap: 10px; align-items: center;
+        min-width: 0;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
+
+      .meta-item {
         white-space: nowrap;
       }
 
-      .path-link {
+      .signal-chip {
+        font-size: 10px;
+        line-height: 1;
+        color: var(--text-muted);
+        background: var(--bg-side);
+        border: 1px solid var(--border-quiet);
+        border-radius: 999px;
+        padding: 2px 5px;
+        white-space: nowrap;
+      }
+
+      .signal-chip.accent {
         color: var(--accent);
-        font-family: var(--font-mono);
-        font-size: 10px;
+        background: var(--accent-soft);
+        border-color: rgba(0, 106, 220, 0.18);
       }
 
-      .path-link:hover {
-        text-decoration: underline;
+      /* Status Icons */
+      .icon-circle { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid currentColor; }
+      .icon-half {
+        width: 12px; height: 12px; border-radius: 50%;
+        border: 1.5px solid currentColor;
+        background: linear-gradient(to right, currentColor 50%, transparent 50%);
+      }
+      .icon-full { width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
+      .icon-check {
+        width: 12px; height: 12px; border-radius: 50%; background: currentColor;
+        position: relative;
+      }
+      .icon-check::after {
+        content: ""; position: absolute; left: 3px; top: 5px; width: 4.5px; height: 2.2px;
+        border-left: 1.2px solid white; border-bottom: 1.2px solid white;
+        transform: rotate(-45deg);
       }
 
-      .timeline-grid {
-        display: grid;
-        gap: 8px;
+      /* Priority Badges */
+      .prio-p0 { color: #ef4444; font-weight: 700; }
+      .prio-p1 { color: #f97316; }
+      .prio-p2 { color: #3b82f6; }
+
+      .empty-state { padding: 40px; text-align: center; color: var(--text-quiet); }
+
+      @keyframes pulse {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.8; }
       }
 
-      .timeline-row {
-        grid-template-columns: 118px minmax(0, 1fr) 120px;
-      }
-
-      .timeline-stamp {
-        font-family: var(--font-mono);
-        font-size: 10px;
-        color: var(--muted);
-      }
-
-      .timeline-tail {
-        display: flex;
-        justify-content: flex-end;
-      }
-
-      .empty {
-        padding: 14px 10px;
-        border: 1px dashed var(--line);
-        border-radius: 10px;
-        color: var(--muted);
-        font-size: 11px;
-        text-align: center;
-      }
-
-      @media (max-width: 1180px) {
-        .topbar,
-        .dense-layout {
-          grid-template-columns: 1fr;
+      @media (max-width: 980px) {
+        .issue-row {
+          grid-template-columns: 18px 66px minmax(0, 1fr) 80px;
+          grid-template-areas:
+            "icon id content date"
+            ". . meta meta";
+          row-gap: 3px;
+          min-height: 42px;
         }
 
-        .top-metrics {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-      }
-
-      @media (max-width: 820px) {
-        .shell {
-          padding: 8px;
-        }
-
-        .state-strip,
-        .top-metrics {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .timeline-row {
-          grid-template-columns: 1fr;
-        }
+        .issue-row > :nth-child(1) { grid-area: icon; }
+        .issue-row > :nth-child(2) { grid-area: id; }
+        .issue-row > :nth-child(3) { grid-area: content; }
+        .issue-row > :nth-child(4) { grid-area: board; display: none; }
+        .issue-row > :nth-child(5) { grid-area: meta; justify-content: flex-start; }
+        .issue-row > :nth-child(6) { grid-area: date; text-align: right; }
       }
     </style>
   </head>
   <body>
     <script id="agata-progress-data" type="application/json">__AGATA_PROGRESS_DATA__</script>
-    <div class="shell">
-      <div class="topbar">
-        <section class="hero">
-          <div class="eyebrow">Agata Workflow Snapshot</div>
-          <h1 id="project-name">__AGATA_PROJECT_NAME__</h1>
-          <div class="hero-meta">
-            <span class="chip mono" id="generated-at">__AGATA_GENERATED_AT__</span>
-            <span class="chip mono" id="project-root"></span>
-            <span class="chip mono" id="template-version"></span>
-          </div>
-        </section>
-        <section class="top-metrics" id="top-metrics"></section>
+
+    <nav class="navbar">
+      <div class="brand">
+        <div class="project-name">__AGATA_PROJECT_NAME__</div>
+        <div class="issue-id" id="project-root" style="opacity:0.6">/path/to/root</div>
       </div>
-
-      <div class="tabs" role="tablist" aria-label="Progress tabs">
-        <button class="tab active" type="button" data-tab-target="current">现状</button>
-        <button class="tab" type="button" data-tab-target="history">历史</button>
+      <div class="main-menu">
+        <div class="menu-item active" data-nav="current">现状 Current</div>
+        <div class="menu-item" data-nav="history">历史 History</div>
       </div>
+    </nav>
 
-      <section class="tab-panel active" data-tab-panel="current">
-        <div class="dense-layout">
-          <div class="stack">
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">状态总览</div>
-                <div class="section-note">当前 issues/ 中的 tk 快照</div>
-              </div>
-              <div class="state-strip" id="state-strip"></div>
-            </section>
-
-            <section class="table-panel">
-              <div class="section-head">
-                <div class="section-title">当前任务</div>
-                <div class="section-note" id="task-table-note"></div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>状态</th>
-                      <th>ID</th>
-                      <th>主题</th>
-                      <th>责任</th>
-                      <th>约束</th>
-                      <th>派生 / 链接</th>
-                      <th>证据</th>
-                      <th>路径</th>
-                    </tr>
-                  </thead>
-                  <tbody id="task-table-body"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="table-panel">
-              <div class="section-head">
-                <div class="section-title">讨论 / 调研 / 参考</div>
-                <div class="section-note">pl / rs / rf</div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>状态</th>
-                      <th>ID</th>
-                      <th>主题</th>
-                      <th>关联</th>
-                      <th>路径</th>
-                    </tr>
-                  </thead>
-                  <tbody id="non-task-table-body"></tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-
-          <div class="stack">
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">板块分布</div>
-                <div class="section-note">按当前 tk 聚合</div>
-              </div>
-              <div class="board-strip" id="board-strip"></div>
-            </section>
-
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">记忆关注</div>
-                <div class="section-note">memory: required / done</div>
-              </div>
-              <div class="micro-list" id="memory-watch"></div>
-            </section>
-
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">协作者状态</div>
-                <div class="section-note">coauthors.csv</div>
-              </div>
-              <div class="micro-list" id="coauthor-watch"></div>
-            </section>
-          </div>
-        </div>
-      </section>
-
-      <section class="tab-panel" data-tab-panel="history">
-        <div class="dense-layout">
-          <div class="stack">
-            <section class="table-panel">
-              <div class="section-head">
-                <div class="section-title">关闭与归档</div>
-                <div class="section-note" id="history-table-note"></div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>状态</th>
-                      <th>ID</th>
-                      <th>主题</th>
-                      <th>更新时间</th>
-                      <th>派生</th>
-                      <th>路径</th>
-                    </tr>
-                  </thead>
-                  <tbody id="history-table-body"></tbody>
-                </table>
-              </div>
-            </section>
-
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">最近活动</div>
-                <div class="section-note">最近 60 条工作流文档变动</div>
-              </div>
-              <div class="timeline-grid" id="timeline-grid"></div>
-            </section>
-          </div>
-
-          <div class="stack">
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">归档年份</div>
-                <div class="section-note">archive/year</div>
-              </div>
-              <div class="micro-list" id="archive-years"></div>
-            </section>
-
-            <section class="panel">
-              <div class="section-head">
-                <div class="section-title">历史记忆</div>
-                <div class="section-note">refs/project-memory-aaak.md</div>
-              </div>
-              <div class="micro-list" id="memory-file-panel"></div>
-            </section>
-          </div>
-        </div>
-      </section>
+    <div class="toolbar">
+      <div class="sub-tabs" id="sub-tabs">
+        <!-- Rendered dynamically -->
+      </div>
+      <div class="search-container">
+        <svg class="search-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
+        <input type="text" class="search-input" id="search-input" placeholder="Search issues..." />
+      </div>
     </div>
+
+    <div class="metrics-bar" id="metrics-bar">
+      <!-- Injected by JS -->
+    </div>
+
+    <main class="content-scroll" id="content-scroll">
+      <!-- Injected by JS -->
+    </main>
+
+    <footer style="height: 24px; border-top: 1px solid var(--border-quiet); background: var(--bg-side); display: flex; align-items: center; padding: 0 16px; font-size: 10px; color: var(--text-quiet); flex-shrink: 0;">
+      Agata Workflow · <span id="generated-at" style="margin-left:4px;">__AGATA_GENERATED_AT__</span>
+    </footer>
 
     <script>
       const data = JSON.parse(document.getElementById("agata-progress-data").textContent);
+      let currentNav = 'current';
+      let currentKind = 'all';
+      let searchQuery = '';
+
+      const STATE_CONFIG = {
+        'tdo': { icon: 'icon-circle', color: 'var(--color-todo)' },
+        'doi': { icon: 'icon-half', color: 'var(--color-active)' },
+        'rvw': { icon: 'icon-half', style: 'opacity: 0.8; animation: pulse 2s infinite;', color: 'var(--color-review)' },
+        'pss': { icon: 'icon-check', color: 'var(--color-pass)' },
+        'dne': { icon: 'icon-check', color: 'var(--color-done)' },
+        'bkd': { icon: 'icon-full', color: 'var(--color-blocked)' },
+        'cand': { icon: 'icon-circle', style: 'opacity: 0.5', color: 'var(--color-cancelled)' },
+        'arvd': { icon: 'icon-circle', style: 'opacity: 0.5', color: 'var(--color-cancelled)' },
+      };
 
       function escapeHtml(value) {
-        return String(value ?? "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
+        return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
       }
 
-      function compactText(value, fallback = "—") {
-        const raw = String(value ?? "").trim();
-        return raw ? escapeHtml(raw) : fallback;
+      function renderStatusIcon(state) {
+        const config = STATE_CONFIG[state] || STATE_CONFIG['tdo'];
+        return `<div class="issue-status-icon" style="color: ${config.color}; ${config.style || ''}"><div class="${config.icon}"></div></div>`;
       }
 
-      function chipList(items, fallback = "—") {
-        if (!items || items.length === 0) {
-          return `<span class="tight-chip">${fallback}</span>`;
-        }
-        return items
-          .map((item) => `<span class="tight-chip">${escapeHtml(item)}</span>`)
-          .join("");
-      }
-
-      function stateBadge(item) {
-        return `<span class="badge tone-${escapeHtml(item.tone)}">${escapeHtml(item.state_label)}</span>`;
-      }
-
-      function metric(label, value, sub) {
-        return `
-          <div class="metric">
-            <div class="metric-label">${escapeHtml(label)}</div>
-            <div class="metric-value">${escapeHtml(value)}</div>
-            <div class="metric-sub">${escapeHtml(sub)}</div>
-          </div>
-        `;
-      }
-
-      function renderTop() {
+      function renderMetrics() {
         document.getElementById("project-root").textContent = data.project.root;
-        document.getElementById("template-version").textContent = `template ${data.project.template_version}`;
-
-        const metrics = data.current.metrics;
-        const percent = `${Math.round(metrics.completion_ratio * 100)}%`;
-        document.getElementById("top-metrics").innerHTML = [
-          metric("Current Tk", metrics.task_total, "当前任务总数"),
-          metric("Active", metrics.active_total, "待做 + 进行 + review + blocked"),
-          metric("Done", metrics.done_total, "pss + dne"),
-          metric("Review", metrics.review_total, "rvw"),
-          metric("Blocked", metrics.blocked_total, "bkd"),
-          metric("Progress", percent, "done / active track"),
-        ].join("");
+        let html = '';
+        if (currentNav === 'current') {
+          const m = data.current.metrics;
+          html = `
+            <div class="metric-item"><span>Tasks</span><span class="metric-value">${m.task_total}</span></div>
+            <div class="metric-item"><span>Active</span><span class="metric-value" style="color: var(--accent)">${m.active_total}</span></div>
+            <div class="metric-item"><span>Review</span><span class="metric-value" style="color: var(--color-review)">${m.review_total}</span></div>
+            <div class="metric-item"><span>Done</span><span class="metric-value" style="color: var(--color-done)">${m.done_total}</span></div>
+            <div class="metric-item"><span>Blocked</span><span class="metric-value" style="color: var(--color-blocked)">${m.blocked_total}</span></div>
+            <div class="metric-item"><span>Docs</span><span class="metric-value">${m.non_task_total + m.review_doc_total}</span></div>
+            <div class="metric-item"><span>Stale</span><span class="metric-value" style="${m.stale_coauthor_total ? 'color: var(--color-blocked)' : ''}">${m.stale_coauthor_total}</span></div>
+            <div class="metric-item"><span>Progress</span><span class="metric-value">${Math.round(m.completion_ratio * 100)}%</span></div>
+          `;
+        } else {
+          html = `
+            <div class="metric-item"><span>Closed</span><span class="metric-value">${data.history.closed_tasks.length}</span></div>
+            <div class="metric-item"><span>Events</span><span class="metric-value">${data.history.recent_events.length}</span></div>
+            <div class="metric-item"><span>Archive</span><span class="metric-value">${data.history.archive_years.length}</span></div>
+            <div class="metric-item"><span>Memory</span><span class="metric-value">${data.history.memory_file.anchors.length}</span></div>
+            <div class="metric-item"><span>Generated</span><span class="metric-value">${escapeHtml(data.project.generated_display.slice(5, 16))}</span></div>
+          `;
+        }
+        document.getElementById("metrics-bar").innerHTML = html;
       }
 
-      function renderStateStrip() {
-        document.getElementById("state-strip").innerHTML = data.current.state_counts
-          .map((item) => {
-            return `
-              <div class="state-card tone-${escapeHtml(item.tone)}">
-                <div class="state-top">
-                  <div class="state-label">${escapeHtml(item.label)}</div>
-                  <div class="state-count">${escapeHtml(item.count)}</div>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-      }
+      function renderSubTabs() {
+        let counts;
+        let config;
 
-      function renderTaskTable() {
-        document.getElementById("task-table-note").textContent = `${data.current.tasks.length} 条`;
-
-        if (data.current.tasks.length === 0) {
-          document.getElementById("task-table-body").innerHTML = `<tr><td colspan="8"><div class="empty">当前没有 tk 任务。</div></td></tr>`;
-          return;
+        if (currentNav === 'current') {
+          const fullItems = [...data.current.tasks, ...data.current.non_tasks];
+          counts = {
+            all: fullItems.length,
+            tk: fullItems.filter(i => i.kind === 'tk').length,
+            pl: fullItems.filter(i => i.kind === 'pl').length,
+            rs: fullItems.filter(i => i.kind === 'rs').length,
+            rf: fullItems.filter(i => i.kind === 'rf').length,
+          };
+          config = [
+            { key: 'all', label: 'All' },
+            { key: 'tk', label: 'Tasks' },
+            { key: 'pl', label: 'Plans' },
+            { key: 'rs', label: 'Research' },
+            { key: 'rf', label: 'Refs' },
+          ];
+        } else {
+          counts = {
+            all: data.history.closed_tasks.length + data.history.recent_events.length + (data.history.memory_file.exists ? 1 : 0) + data.history.archive_years.length,
+            tk: data.history.closed_tasks.length,
+            evt: data.history.recent_events.length,
+            mem: data.history.memory_file.exists ? 1 : 0,
+            arc: data.history.archive_years.length,
+          };
+          config = [
+            { key: 'all', label: 'All' },
+            { key: 'tk', label: 'Closed' },
+            { key: 'evt', label: 'Events' },
+            { key: 'mem', label: 'Memory' },
+            { key: 'arc', label: 'Archive' },
+          ];
         }
 
-        document.getElementById("task-table-body").innerHTML = data.current.tasks
-          .map((task) => {
-            const constraints = [
-              task.priority ? `prio ${task.priority}` : "",
-              task.risk ? `risk ${task.risk}` : "",
-              task.memory && task.memory !== "none" ? `memory ${task.memory}` : "",
-            ].filter(Boolean);
-
-            const relationBits = [
-              ...task.relation.derived_bits,
-              ...task.relation.linked_bits,
-            ];
-
-            const evidenceBits = [
-              task.accept ? "accept" : "",
-              task.verify ? "verify" : "",
-              task.code_version ? `code ${task.code_version}` : "",
-            ].filter(Boolean);
-
-            return `
-              <tr>
-                <td>${stateBadge(task)}</td>
-                <td>
-                  <div class="text-stack">
-                    <div class="primary-line mono">${escapeHtml(task.doc_id)}</div>
-                    <div class="secondary-line">${escapeHtml(task.board)}</div>
-                  </div>
-                </td>
-                <td>
-                  <div class="text-stack">
-                    <div class="primary-line">${escapeHtml(task.title)}</div>
-                    <div class="secondary-line">${compactText(task.summary)}</div>
-                    <div class="tight-chips">${chipList(task.siblings.map((item) => item.doc_id), "无同锚文档")}</div>
-                  </div>
-                </td>
-                <td>
-                  <div class="text-stack">
-                    <div class="secondary-line">owner ${compactText(task.owner)}</div>
-                    <div class="secondary-line">assignee ${compactText(task.assignee)}</div>
-                    <div class="secondary-line">reviewer ${compactText(task.reviewer)}</div>
-                  </div>
-                </td>
-                <td><div class="tight-chips">${chipList(constraints, "无")}</div></td>
-                <td><div class="tight-chips">${chipList(relationBits, "无")}</div></td>
-                <td>
-                  <div class="text-stack">
-                    <div class="tight-chips">${chipList(evidenceBits, "无")}</div>
-                    <div class="tertiary-line">${task.has_memory_anchor ? "memory anchored" : "memory not anchored"}</div>
-                  </div>
-                </td>
-                <td><a class="path-link" href="${escapeHtml(task.file_url)}">${escapeHtml(task.path)}</a></td>
-              </tr>
-            `;
-          })
-          .join("");
+        let html = '';
+        config.forEach(item => {
+          const activeClass = currentKind === item.key ? 'active' : '';
+          html += `<button class="sub-tab ${activeClass}" onclick="setSubKind('${item.key}')">
+            ${item.label} <span class="tab-badge">${counts[item.key]}</span>
+          </button>`;
+        });
+        document.getElementById("sub-tabs").innerHTML = html;
       }
 
-      function renderNonTaskTable() {
-        if (data.current.non_tasks.length === 0) {
-          document.getElementById("non-task-table-body").innerHTML = `<tr><td colspan="5"><div class="empty">当前没有 pl / rs / rf 文档。</div></td></tr>`;
-          return;
-        }
-
-        document.getElementById("non-task-table-body").innerHTML = data.current.non_tasks
-          .map((doc) => {
-            return `
-              <tr>
-                <td>${stateBadge(doc)}</td>
-                <td><span class="mono">${escapeHtml(doc.doc_id)}</span></td>
-                <td>
-                  <div class="text-stack">
-                    <div class="primary-line">${escapeHtml(doc.title)}</div>
-                    <div class="secondary-line">${compactText(doc.summary)}</div>
-                  </div>
-                </td>
-                <td><div class="tight-chips">${chipList(doc.siblings.map((item) => item.doc_id), "无")}</div></td>
-                <td><a class="path-link" href="${escapeHtml(doc.file_url)}">${escapeHtml(doc.path)}</a></td>
-              </tr>
-            `;
-          })
-          .join("");
+      function signalChips(items, accent = false) {
+        if (!items || items.length === 0) return '';
+        return items.map(item => `<span class="signal-chip ${accent ? 'accent' : ''}">${escapeHtml(item)}</span>`).join('');
       }
 
-      function renderBoards() {
-        const mount = document.getElementById("board-strip");
-        if (data.current.board_counts.length === 0) {
-          mount.innerHTML = `<div class="empty">当前没有板块数据。</div>`;
-          return;
-        }
-        mount.innerHTML = data.current.board_counts
-          .map((item) => {
-            return `
-              <div class="board-row">
-                <div class="mini-title mono">${escapeHtml(item.board)}</div>
-                <div class="mini-title mono">${escapeHtml(item.count)}</div>
-              </div>
-            `;
-          })
-          .join("");
+      function historyEventRow(event) {
+        return {
+          ...event,
+          board: event.kind_label || 'history',
+          priority: '',
+          assignee: event.kind_label || '',
+          relation: { derived_bits: [], linked_bits: [] },
+          has_memory_anchor: false,
+        };
       }
 
-      function renderMemoryWatch() {
-        const mount = document.getElementById("memory-watch");
-        if (data.current.memory_watch.length === 0) {
-          mount.innerHTML = `<div class="empty">当前没有 memory 关注项。</div>`;
-          return;
-        }
-        mount.innerHTML = data.current.memory_watch
-          .map((doc) => {
-            const status = doc.has_memory_anchor ? "anchored" : "missing anchor";
-            return `
-              <div class="mini-row">
-                <div class="mini-kicker">${escapeHtml(doc.memory)}</div>
-                <div class="mini-main">
-                  <div class="mini-title">${escapeHtml(doc.doc_id)} · ${escapeHtml(doc.title)}</div>
-                  <div class="mini-sub">${escapeHtml(status)} · ${escapeHtml(doc.state_label)} · ${escapeHtml(doc.path)}</div>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-      }
-
-      function renderCoauthors() {
-        const mount = document.getElementById("coauthor-watch");
-        if (data.current.coauthors.length === 0) {
-          mount.innerHTML = `<div class="empty">没有 coauthors.csv。</div>`;
-          return;
-        }
-        mount.innerHTML = data.current.coauthors
-          .map((row) => {
-            const status = row.stale ? `${row.status} · stale` : row.status || "unknown";
-            return `
-              <div class="mini-row">
-                <div class="mini-kicker">${escapeHtml(status)}</div>
-                <div class="mini-main">
-                  <div class="mini-title">${escapeHtml(row.handle || "unknown")}</div>
-                  <div class="mini-sub">${escapeHtml([row.role, row.engine, row.updated_at].filter(Boolean).join(" · ") || "无时间戳")}</div>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-      }
-
-      function renderHistoryTable() {
-        document.getElementById("history-table-note").textContent = `${data.history.closed_tasks.length} 条`;
-
-        if (data.history.closed_tasks.length === 0) {
-          document.getElementById("history-table-body").innerHTML = `<tr><td colspan="6"><div class="empty">还没有关闭或归档任务。</div></td></tr>`;
-          return;
-        }
-
-        document.getElementById("history-table-body").innerHTML = data.history.closed_tasks
-          .map((doc) => {
-            return `
-              <tr>
-                <td>${stateBadge(doc)}</td>
-                <td><span class="mono">${escapeHtml(doc.doc_id)}</span></td>
-                <td>
-                  <div class="text-stack">
-                    <div class="primary-line">${escapeHtml(doc.title)}</div>
-                    <div class="secondary-line">${compactText(doc.summary)}</div>
-                  </div>
-                </td>
-                <td><span class="mono">${escapeHtml(doc.modified_display)}</span></td>
-                <td><div class="tight-chips">${chipList(doc.relation.derived_bits, "无")}</div></td>
-                <td><a class="path-link" href="${escapeHtml(doc.file_url)}">${escapeHtml(doc.path)}</a></td>
-              </tr>
-            `;
-          })
-          .join("");
-      }
-
-      function renderTimeline() {
-        const mount = document.getElementById("timeline-grid");
-        if (data.history.recent_events.length === 0) {
-          mount.innerHTML = `<div class="empty">暂无最近活动。</div>`;
-          return;
-        }
-        mount.innerHTML = data.history.recent_events
-          .map((event) => {
-            return `
-              <div class="timeline-row">
-                <div class="timeline-stamp">${escapeHtml(event.modified_display)}</div>
-                <div class="mini-main">
-                  <div class="mini-title">${escapeHtml(event.doc_id)} · ${escapeHtml(event.title)}</div>
-                  <div class="mini-sub">${escapeHtml(event.summary)}</div>
-                </div>
-                <div class="timeline-tail">
-                  <a class="path-link" href="${escapeHtml(event.file_url)}">${escapeHtml(event.path)}</a>
-                </div>
-              </div>
-            `;
-          })
-          .join("");
-      }
-
-      function renderArchiveYears() {
-        const mount = document.getElementById("archive-years");
-        if (data.history.archive_years.length === 0) {
-          mount.innerHTML = `<div class="empty">暂无归档年份。</div>`;
-          return;
-        }
-        mount.innerHTML = data.history.archive_years
-          .map((item) => {
-            return `
-              <div class="board-row">
-                <div class="mini-title mono">${escapeHtml(item.year)}</div>
-                <div class="mini-title mono">${escapeHtml(item.count)}</div>
-              </div>
-            `;
-          })
-          .join("");
-      }
-
-      function renderMemoryFile() {
-        const mount = document.getElementById("memory-file-panel");
+      function memorySummaryRows() {
         const file = data.history.memory_file;
-        const anchorPreview = file.anchors.slice(0, 12);
-        mount.innerHTML = `
-          <div class="mini-row">
-            <div class="mini-kicker">${file.exists ? "exists" : "missing"}</div>
-            <div class="mini-main">
-              <div class="mini-title">
-                ${file.file_url ? `<a class="path-link" href="${escapeHtml(file.file_url)}">${escapeHtml(file.path)}</a>` : escapeHtml(file.path)}
+        const rows = [];
+        if (file.exists) {
+          rows.push({
+            doc_id: 'mem',
+            title: 'project-memory-aaak',
+            summary: `${file.anchors.length} anchors · ${file.path}`,
+            board: 'memory',
+            priority: '',
+            assignee: 'project memory',
+            modified_display: data.project.generated_display.slice(5, 16),
+            file_url: file.file_url || '',
+            state: 'dne',
+            relation: {
+              derived_bits: file.anchors.slice(0, 4),
+              linked_bits: file.anchors.length > 4 ? [`+${file.anchors.length - 4}`] : [],
+            },
+            has_memory_anchor: false,
+          });
+        }
+        return rows;
+      }
+
+      function archiveRows() {
+        return data.history.archive_years.map(item => ({
+          doc_id: `archive-${item.year}`,
+          title: `archive ${item.year}`,
+          summary: `${item.count} archived docs`,
+          board: 'archive',
+          priority: '',
+          assignee: 'history',
+          modified_display: '',
+          file_url: '',
+          state: 'arvd',
+          relation: { derived_bits: [`docs ${item.count}`], linked_bits: [] },
+          has_memory_anchor: false,
+        }));
+      }
+
+      window.setSubKind = (kind) => {
+        currentKind = kind;
+        renderSubTabs();
+        renderContent();
+      };
+
+      function renderIssueRow(issue) {
+        const priorityClass = issue.priority ? `prio-${issue.priority}` : '';
+        const relationBits = [
+          ...(issue.relation?.derived_bits || []).slice(0, 3),
+          ...(issue.relation?.linked_bits || []).slice(0, 2),
+        ];
+        const evidenceBits = [
+          issue.verify ? 'verify' : '',
+          issue.code_version ? 'code' : '',
+          issue.memory && issue.memory !== 'none' ? `memory ${issue.memory}` : '',
+          issue.has_memory_anchor ? 'anchored' : '',
+        ].filter(Boolean);
+        return `
+          <div class="issue-row" data-url="${escapeHtml(issue.file_url || '')}" onclick="if (this.dataset.url) window.open(this.dataset.url, '_blank')">
+            ${renderStatusIcon(issue.state)}
+            <div class="issue-id">${escapeHtml(issue.doc_id)}</div>
+            <div class="issue-content">
+              <div class="issue-mainline">
+                <div class="issue-title">${escapeHtml(issue.title)}</div>
+                ${issue.summary ? `<span class="issue-summary-sep">·</span><div class="issue-summary">${escapeHtml(issue.summary)}</div>` : ''}
               </div>
-              <div class="mini-sub">${file.anchors.length} anchors</div>
+              <div class="issue-detailline">
+                ${signalChips(relationBits)}
+                ${signalChips(evidenceBits, true)}
+              </div>
             </div>
+            <div class="issue-board">${escapeHtml(issue.board || '—')}</div>
+            <div class="issue-meta">
+              <span class="${priorityClass}">${escapeHtml(issue.priority || '—')}</span>
+              <span class="meta-item">${escapeHtml(issue.assignee || issue.owner || '—')}</span>
+              ${issue.path ? `<span class="meta-item">${escapeHtml(issue.path)}</span>` : ''}
+            </div>
+            <div class="issue-id" style="text-align: right;">${escapeHtml(issue.modified_display)}</div>
           </div>
-          <div class="tight-chips">${chipList(anchorPreview, "无锚点")}</div>
         `;
       }
 
-      function activateTabs() {
-        const tabs = [...document.querySelectorAll("[data-tab-target]")];
-        const panels = [...document.querySelectorAll("[data-tab-panel]")];
-        tabs.forEach((tab) => {
-          tab.addEventListener("click", () => {
-            const target = tab.getAttribute("data-tab-target");
-            tabs.forEach((item) => item.classList.toggle("active", item === tab));
-            panels.forEach((panel) => panel.classList.toggle("active", panel.getAttribute("data-tab-panel") === target));
+      function renderContent() {
+        const container = document.getElementById("content-scroll");
+        const matchesQuery = (item) => {
+          if (!searchQuery) return true;
+          const q = searchQuery.toLowerCase();
+          return (
+            item.title.toLowerCase().includes(q) ||
+            item.doc_id.toLowerCase().includes(q) ||
+            (item.summary && item.summary.toLowerCase().includes(q)) ||
+            (item.board && item.board.toLowerCase().includes(q)) ||
+            (item.path && item.path.toLowerCase().includes(q)) ||
+            ((item.assignee || item.owner) && String(item.assignee || item.owner).toLowerCase().includes(q))
+          );
+        };
+
+        const renderStateGroups = (items) => {
+          if (items.length === 0) return '';
+          const groups = {};
+          const stateOrder = ['doi', 'rvw', 'bkd', 'tdo', 'pss', 'dne', 'cand', 'arvd'];
+
+          items.forEach(item => {
+            const s = item.state;
+            if (!groups[s]) groups[s] = [];
+            groups[s].push(item);
           });
-        });
+
+          let html = '';
+          stateOrder.forEach(state => {
+            if (groups[state] && groups[state].length > 0) {
+              const label = data.current.state_counts.find(c => c.state === state)?.label || state;
+              html += `
+                <div class="group-header">
+                  ${label} <span class="group-count">${groups[state].length}</span>
+                </div>
+                <div class="issue-list">
+                  ${groups[state].map(item => renderIssueRow(item)).join('')}
+                </div>
+              `;
+            }
+          });
+          return html;
+        };
+
+        let html = '';
+
+        if (currentNav === 'current') {
+          let items = [...data.current.tasks, ...data.current.non_tasks];
+
+          if (currentKind !== 'all') {
+            items = items.filter(i => i.kind === currentKind);
+          }
+
+          items = items.filter(matchesQuery);
+          html = renderStateGroups(items);
+        } else {
+          const closedTasks = data.history.closed_tasks.filter(matchesQuery);
+          const events = data.history.recent_events.map(historyEventRow).filter(matchesQuery);
+          const memories = memorySummaryRows().filter(matchesQuery);
+          const archives = archiveRows().filter(matchesQuery);
+
+          if (currentKind === 'tk') {
+            html = renderStateGroups(closedTasks);
+          } else if (currentKind === 'evt') {
+            html = `
+              <div class="group-header">Recent Activity <span class="group-count">${events.length}</span></div>
+              <div class="issue-list">${events.map(renderIssueRow).join('')}</div>
+            `;
+          } else if (currentKind === 'mem') {
+            html = `
+              <div class="group-header">Project Memory <span class="group-count">${memories.length}</span></div>
+              <div class="issue-list">${memories.map(renderIssueRow).join('')}</div>
+            `;
+          } else if (currentKind === 'arc') {
+            html = `
+              <div class="group-header">Archive Years <span class="group-count">${archives.length}</span></div>
+              <div class="issue-list">${archives.map(renderIssueRow).join('')}</div>
+            `;
+          } else {
+            html += `
+              <div class="group-header">Recent Activity <span class="group-count">${events.length}</span></div>
+              <div class="issue-list">${events.map(renderIssueRow).join('')}</div>
+            `;
+            html += renderStateGroups(closedTasks);
+            html += `
+              <div class="group-header">Project Memory <span class="group-count">${memories.length}</span></div>
+              <div class="issue-list">${memories.map(renderIssueRow).join('')}</div>
+            `;
+            html += `
+              <div class="group-header">Archive Years <span class="group-count">${archives.length}</span></div>
+              <div class="issue-list">${archives.map(renderIssueRow).join('')}</div>
+            `;
+          }
+        }
+
+        if (!html.trim()) {
+          container.innerHTML = '<div class="empty-state">No items found matching your filter.</div>';
+          return;
+        }
+
+        container.innerHTML = html;
       }
 
-      renderTop();
-      renderStateStrip();
-      renderTaskTable();
-      renderNonTaskTable();
-      renderBoards();
-      renderMemoryWatch();
-      renderCoauthors();
-      renderHistoryTable();
-      renderTimeline();
-      renderArchiveYears();
-      renderMemoryFile();
-      activateTabs();
+      // Interactivity
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+          document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+          currentNav = item.dataset.nav;
+          currentKind = 'all';
+          renderMetrics();
+          renderSubTabs();
+          renderContent();
+        });
+      });
+
+      document.getElementById('search-input').addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        renderContent();
+      });
+
+      // Init
+      renderMetrics();
+      renderSubTabs();
+      renderContent();
     </script>
   </body>
 </html>

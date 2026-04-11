@@ -45,9 +45,13 @@ assert_contains "$log_file" "^html: $html_file$"
 assert_contains "$log_file" "^opened: no$"
 assert_contains "$data_file" '"name": "doc-sample"'
 assert_contains "$data_file" '"doc_id": "tk0001"'
-assert_contains "$html_file" 'Agata Workflow Snapshot'
-assert_contains "$html_file" '现状'
-assert_contains "$html_file" '历史'
+assert_contains "$html_file" 'Agata Progress'
+assert_contains "$html_file" '现状 Current'
+assert_contains "$html_file" '历史 History'
+assert_contains "$html_file" 'Search issues...'
+assert_contains "$html_file" 'Recent Activity'
+assert_contains "$html_file" 'Project Memory'
+assert_contains "$html_file" 'Archive Years'
 assert_contains "$html_file" 'agata-progress-data'
 assert_contains "$html_file" 'doc-sample'
 
@@ -100,9 +104,23 @@ write_file "$project_root/refs/project-memory-aaak.md" <<'EOF'
 源: tk10001
 EOF
 
+write_file "$project_root/issues/archive/2026/tk10002.arvd.runtime.viewer-archive.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: validate archive grouping
+scope: one archived task
+risk: low
+accept: archive year visible
+links: []
+---
+EOF
+
 write_file "$project_root/coauthors.csv" <<'EOF'
 handle,owner,engine,role,status,updated_at,note
 dense.viewer,viewer,codex,worker,online,2026-04-11T10:00:00+08:00,active
+stale.viewer,viewer,codex,worker,online,2026-04-09T10:00:00+08:00,stale
 EOF
 
 out_dir="$(mktemp -d)"
@@ -115,6 +133,8 @@ html_file="$out_dir_real/progress-view.html"
 assert_contains "$data_file" '"doc_id": "tk10001"'
 assert_contains "$data_file" '"doc_id": "rp10001"'
 assert_contains "$data_file" '"anchor_id": "10001"'
+assert_contains "$data_file" '"year": "2026"'
+assert_contains "$data_file" '"stale_coauthor_total": 1'
 assert_contains "$html_file" 'tk10001'
 assert_contains "$html_file" 'rp10001'
 assert_contains "$html_file" 'project-memory-aaak'

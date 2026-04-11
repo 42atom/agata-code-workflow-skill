@@ -100,6 +100,11 @@ Progress view note:
 - the generated viewer embeds the JSON snapshot, so `file://` opening still works
 - current view focuses on open workflow truth + derived relations
 - history view focuses on closed/archive flow + recent document activity
+- the UI is dense and read-only, so an agent can quickly show project status without inventing a second control plane
+
+Example:
+
+![Dense read-only workflow progress view](assets/progress-view-doc-sample.png)
 
 Review note:
 
