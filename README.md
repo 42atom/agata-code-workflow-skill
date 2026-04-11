@@ -25,21 +25,56 @@ It is for teams that want a lightweight local Git workflow instead of adding a s
 
 ```text
 agata-code-workflow-skill/
-  SKILL.md
   README.md
-  agents/openai.yaml
-  references/workflow-rules.md
+  agata-code-workflow/
+    SKILL.md
+    scripts/task.sh
+    agents/openai.yaml
+    references/workflow-rules.md
 ```
 
 ## How To Use
 
-Install this folder as a local skill in your coding agent environment.
+Install the `agata-code-workflow/` folder as a local skill in your coding agent environment.
 
 Then, in each project that uses this workflow, keep the project-specific entrypoint short:
 
 - put project-specific rules in `AGENTS.md` or `CLAUDE.md`
 - point the agent to this skill by name
 - only write project delta locally; do not duplicate the whole workflow spec into every repo
+
+## Thin Helper Script
+
+This repo also ships a thin workflow helper:
+
+- `agata-code-workflow/scripts/task.sh`
+
+It is intentionally small. It does not store task state anywhere else.
+
+Current commands:
+
+```bash
+./agata-code-workflow/scripts/task.sh ls [state]
+./agata-code-workflow/scripts/task.sh show 0061
+./agata-code-workflow/scripts/task.sh move 0061 doi
+./agata-code-workflow/scripts/task.sh archive 0061
+./agata-code-workflow/scripts/task.sh check
+```
+
+What it does:
+
+- list task files
+- show the current `tk` file
+- rename a `tk` file across legal states
+- move `arvd` tasks into `issues/archive/YYYY/`
+- validate basic workflow invariants
+
+What it does not do:
+
+- no shadow database
+- no auto indexing
+- no ownership scheduler
+- no second state system
 
 ## Recommended Project Setup
 
@@ -106,4 +141,4 @@ This avoids copying the same rules into every repository.
 - Do not turn this into a second control plane
 - Prefer rename + validate over generating shadow indexes
 
-For the exact rules, read [references/workflow-rules.md](references/workflow-rules.md).
+For the exact rules, read [agata-code-workflow/references/workflow-rules.md](agata-code-workflow/references/workflow-rules.md).

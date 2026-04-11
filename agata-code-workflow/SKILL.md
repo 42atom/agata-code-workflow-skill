@@ -39,6 +39,21 @@ Do not invent a second state system. The filename state slot is the truth source
 6. Before moving a code task to `rvw`, confirm it has `accept`, `code_version`, and `verify`.
 7. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
 
+## Bundled Script
+
+If the user asks for workflow automation, use `scripts/task.sh` first.
+
+Current commands:
+
+- `task.sh ls [state]`
+- `task.sh show <task-id>`
+- `task.sh move <task-id> <state>`
+- `task.sh archive <task-id>`
+- `task.sh check`
+
+Use it for legal rename flow, basic validation, and archive moves.
+Do not extend it into a scheduler, indexer, or ownership service unless the user explicitly asks.
+
 ## When To Read References
 
 Read `references/workflow-rules.md` when you need exact naming, state, or semantic mapping details.
