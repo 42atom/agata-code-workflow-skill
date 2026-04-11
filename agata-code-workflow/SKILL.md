@@ -38,7 +38,8 @@ Do not invent a second state system. The filename state slot is the truth source
 4. When a task moves state, rename the existing `tk` file; do not create a parallel file.
 5. When review happens, create new `rp` files; do not encode reply chains as `re.` or `re.re.`.
 6. Before moving a code task to `rvw`, confirm it has `accept`, `code_version`, and `verify`.
-7. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
+7. `refs/project-memory-aaak.md` is historical memory, not task truth.
+8. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
 
 ## Bundled Script
 
@@ -52,7 +53,7 @@ Current commands:
 - `task.sh archive <task-id>`
 - `task.sh check`
 
-Use it for legal rename flow, basic validation, and archive moves.
+Use it for legal rename flow, basic validation, archive moves, and memory-gated close checks.
 Do not extend it into a scheduler, indexer, or ownership service unless the user explicitly asks.
 
 ## When To Read References
@@ -67,6 +68,13 @@ Read `references/aaak-profiles.md` when the user wants a workflow-specific AAAK 
 - `rs`
 - `rp`
 - project memory notes
+
+Read `refs/project-memory-aaak.md` when:
+
+- taking over an unfamiliar module
+- answering "why did we do this"
+- reviewing historical decisions or freeze points
+- deciding whether a task must be written into long-term memory
 
 Typical cases:
 

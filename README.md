@@ -39,6 +39,7 @@ agata-code-workflow-skill/
     coauthors.csv
     issues/
     docs/reviews/
+    refs/project-memory-aaak.md
 ```
 
 ## How To Use
@@ -77,6 +78,7 @@ What it does:
 - move `arvd` tasks into `issues/archive/YYYY/`
 - validate basic workflow invariants
 - validate that declared `rp` links in `tk.links` actually exist
+- gate `memory: required|done` tasks against `refs/project-memory-aaak.md`
 
 What it does not do:
 
@@ -99,12 +101,30 @@ Use AAAK when you want:
 - compact research notes
 - long-lived project memory
 
+Recommended memory file:
+
+- `refs/project-memory-aaak.md`
+
+Use it as a derived history layer:
+
+- not task truth
+- not a review replacement
+- only for stable project memory
+
 Do not use AAAK to replace:
 
 - filename state truth
 - front matter control fields
 - operator checklists
 - long command procedures
+
+If a task declares:
+
+```yaml
+memory: required
+```
+
+then it must be recorded in `refs/project-memory-aaak.md` before it closes into `dne` / `arvd`.
 
 ## Recommended Project Setup
 
@@ -113,6 +133,7 @@ your-project/
   AGENTS.md
   issues/
   docs/reviews/
+  refs/project-memory-aaak.md
   coauthors.csv        # optional
 ```
 

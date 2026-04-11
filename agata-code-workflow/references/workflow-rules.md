@@ -95,7 +95,33 @@ handle,owner,engine,role,status,updated_at,note
 - `status` 只作参考，不作自动化门禁
 - 长时间未更新的状态视为不可靠
 
-## 6. 状态与评审规则
+## 6. 历史记忆层
+
+允许在仓库内放：
+
+- `refs/project-memory-aaak.md`
+
+它的职责只有一个：
+
+- 承载低噪声、高密度的项目历史记忆
+
+规则：
+
+- 它是历史入口，不是任务状态真相
+- 与当前状态冲突时，以 `issues/` 与证据链为准
+- 只记里程碑、关键决策、流程迁移、冻结节点、关键阻断
+- 不记逐条流水账，不替代 `tk` / `rp`
+
+最小 front matter 扩展：
+
+- `memory: none | required | done`
+
+语义：
+
+- `none` = 不要求进入项目历史记忆
+- `required` = 关闭前必须写入 `refs/project-memory-aaak.md`
+- `done` = 已写入项目历史记忆，且记忆文件必须能回指该任务
+## 7. 状态与评审规则
 
 任务主流状态：
 
@@ -132,7 +158,7 @@ review 命名规则：
 - `pss` 是机器态，不是人工终态
 - 人工关闭结论仍以 `dne` 为准
 
-## 7. rvw 入场门槛
+## 8. rvw 入场门槛
 
 代码任务进入 `rvw` 前，至少要有：
 
@@ -142,7 +168,7 @@ review 命名规则：
 
 没有这三项，不算真正进入 review。
 
-## 8. 提交规范
+## 9. 提交规范
 
 commit：
 
@@ -171,7 +197,7 @@ action：
 - `board` 必须和任务文件第三槽一致
 - 需要验收时在 commit body 追加 `Reviewed-by`
 
-## 9. 单任务示例
+## 10. 单任务示例
 
 目录：
 
@@ -185,6 +211,9 @@ docs/reviews/
   rp0061.dne.runtime.review-r1-codex.md
   rp0061.dne.runtime.reply-r1-mobile007kx.md
   rp0061.dne.runtime.review-r2-codex.md
+
+refs/
+  project-memory-aaak.md
 
 docs/
   operator-checklist-tk0061.md

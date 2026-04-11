@@ -5,6 +5,7 @@ set -euo pipefail
 ######## task workflow helper
 
 VALID_STATES="tdo doi rvw pss dne bkd cand arvd"
+VALID_MEMORY_MODES="none required done"
 
 die() {
   echo "error: $*" >&2
@@ -15,6 +16,16 @@ is_valid_state() {
   local needle="$1"
   for state in $VALID_STATES; do
     if [[ "$state" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+is_valid_memory_mode() {
+  local needle="$1"
+  for mode in $VALID_MEMORY_MODES; do
+    if [[ "$mode" == "$needle" ]]; then
       return 0
     fi
   done
@@ -75,6 +86,31 @@ task_state_from_file() {
   echo "${after_prefix%%.*}"
 }
 
+task_id_from_file() {
+  local file="$1"
+  basename "$file" | cut -d. -f1
+}
+
+extract_frontmatter_scalar() {
+  local file="$1"
+  local key="$2"
+
+  awk -v wanted="$key" '
+    NR == 1 && $0 == "---" { in_yaml = 1; next }
+    in_yaml && $0 == "---" { exit }
+    !in_yaml { next }
+    $0 ~ ("^" wanted ":[[:space:]]*") {
+      line = $0
+      sub("^" wanted ":[[:space:]]*", "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      gsub(/^'\''|'\''$/, "", line)
+      gsub(/^"|"$/, "", line)
+      print line
+      exit
+    }
+  ' "$file"
+}
+
 rename_task_state() {
   local file="$1"
   local new_state="$2"
@@ -107,6 +143,61 @@ can_transition() {
     arvd) [[ "$to" == "arvd" ]] ;;
     *) return 1 ;;
   esac
+}
+
+project_memory_file() {
+  local root="$1"
+  echo "$root/refs/project-memory-aaak.md"
+}
+
+task_needs_memory_gate() {
+  local file="$1"
+  local memory_mode state
+
+  memory_mode="$(extract_frontmatter_scalar "$file" "memory")"
+  if [[ -z "$memory_mode" || "$memory_mode" == "none" ]]; then
+    return 1
+  fi
+
+  is_valid_memory_mode "$memory_mode" || die "invalid memory mode: $file -> $memory_mode"
+
+  if [[ "$memory_mode" == "done" ]]; then
+    return 0
+  fi
+
+  state="$(task_state_from_file "$file")"
+  [[ "$state" == "dne" || "$state" == "arvd" ]]
+}
+
+memory_entry_exists() {
+  local root="$1"
+  local task_id="$2"
+  local memory_file
+
+  memory_file="$(project_memory_file "$root")"
+  [[ -f "$memory_file" ]] || return 1
+  grep -Eq "(^|[^[:alnum:]_-])${task_id}([^[:alnum:]_-]|$)" "$memory_file"
+}
+
+assert_memory_gate_for_close() {
+  local root="$1"
+  local file="$2"
+  local new_state="$3"
+  local task_id memory_mode
+
+  if [[ "$new_state" != "dne" && "$new_state" != "arvd" ]]; then
+    return 0
+  fi
+
+  memory_mode="$(extract_frontmatter_scalar "$file" "memory")"
+  if [[ -z "$memory_mode" || "$memory_mode" == "none" ]]; then
+    return 0
+  fi
+
+  is_valid_memory_mode "$memory_mode" || die "invalid memory mode: $file -> $memory_mode"
+
+  task_id="$(task_id_from_file "$file")"
+  memory_entry_exists "$root" "$task_id" || die "missing project memory entry for ${task_id}: $(project_memory_file "$root")"
 }
 
 print_usage() {
@@ -155,6 +246,7 @@ cmd_move() {
     die "task already in state ${new_state}"
   fi
   can_transition "$old_state" "$new_state" || die "illegal transition: ${old_state} -> ${new_state}"
+  assert_memory_gate_for_close "$root" "$file" "$new_state"
 
   new_file="$(rename_task_state "$file" "$new_state")"
   echo "$new_file"
@@ -170,6 +262,7 @@ cmd_archive() {
 
   if [[ "$state" != "arvd" ]]; then
     can_transition "$state" "arvd" || die "task in state ${state} cannot be archived"
+    assert_memory_gate_for_close "$root" "$file" "arvd"
     file="$(rename_task_state "$file" "arvd")"
   fi
 
@@ -318,6 +411,20 @@ check_legacy_reply_chains() {
   fi
 }
 
+check_project_memory_links() {
+  local root="$1"
+  local file task_id
+
+  while IFS= read -r file; do
+    if ! task_needs_memory_gate "$file"; then
+      continue
+    fi
+
+    task_id="$(task_id_from_file "$file")"
+    memory_entry_exists "$root" "$task_id" || die "missing project memory entry for ${task_id}: $(project_memory_file "$root")"
+  done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.md' | sort)
+}
+
 cmd_check() {
   local root="$1"
 
@@ -326,6 +433,7 @@ cmd_check() {
   check_rp_names "$root"
   check_tk_rp_links_exist "$root"
   check_legacy_reply_chains "$root"
+  check_project_memory_links "$root"
   echo "ok"
 }
 
