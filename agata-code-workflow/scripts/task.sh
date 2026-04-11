@@ -204,11 +204,46 @@ print_usage() {
   cat <<'EOF'
 usage:
   task.sh ls [state]
+  task.sh find <id>
   task.sh show <task-id>
   task.sh move <task-id> <state>
   task.sh archive <task-id>
   task.sh check
 EOF
+}
+
+normalize_doc_id() {
+  local raw="$1"
+  if [[ "$raw" =~ ^[0-9]{4}$ ]]; then
+    echo "tk${raw}"
+    return 0
+  fi
+  if [[ "$raw" =~ ^(tk|pl|rs|rf|rp)[0-9]{4}$ ]]; then
+    echo "$raw"
+    return 0
+  fi
+  die "id must be 4 digits or {tk|pl|rs|rf|rp}NNNN"
+}
+
+find_doc_file() {
+  local root="$1"
+  local doc_id="$2"
+  local matches=()
+
+  while IFS= read -r path; do
+    matches+=("$path")
+  done < <(
+    {
+      find "$root/issues" -maxdepth 1 -type f -name "${doc_id}.*.md" 2>/dev/null
+      find "$root/docs/reviews" -maxdepth 1 -type f -name "${doc_id}.*.md" 2>/dev/null
+    } | sort
+  )
+
+  if [[ "${#matches[@]}" -eq 0 ]]; then
+    die "document not found for ${doc_id}"
+  fi
+
+  printf '%s\n' "${matches[@]}"
 }
 
 cmd_ls() {
@@ -229,6 +264,13 @@ cmd_show() {
   local task_id
   task_id="$(normalize_task_id "$2")"
   find_task_file "$root" "$task_id"
+}
+
+cmd_find() {
+  local root="$1"
+  local doc_id
+  doc_id="$(normalize_doc_id "$2")"
+  find_doc_file "$root" "$doc_id"
 }
 
 cmd_move() {
@@ -450,6 +492,11 @@ main() {
       root="$(find_project_root)" || die "run from a project directory that contains issues/"
       shift
       cmd_ls "$root" "${1:-}"
+      ;;
+    find)
+      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      [[ $# -eq 2 ]] || die "usage: task.sh find <id>"
+      cmd_find "$root" "$2"
       ;;
     show)
       root="$(find_project_root)" || die "run from a project directory that contains issues/"

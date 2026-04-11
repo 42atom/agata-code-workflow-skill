@@ -37,9 +37,10 @@ Do not invent a second state system. The filename state slot is the truth source
 3. Preserve id-first naming and keep the filename slots stable except for state.
 4. When a task moves state, rename the existing `tk` file; do not create a parallel file.
 5. When review happens, create new `rp` files; do not encode reply chains as `re.` or `re.re.`.
-6. Before moving a code task to `rvw`, confirm it has `accept`, `code_version`, and `verify`.
-7. `refs/project-memory-aaak.md` is historical memory, not task truth.
-8. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
+6. `rp` records are append-style evidence. Once created, treat them as frozen and prefer `dne`.
+7. Before moving a code task to `rvw`, confirm it has `accept`, `code_version`, and `verify`.
+8. `refs/project-memory-aaak.md` is historical memory, not task truth.
+9. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
 
 ## Bundled Script
 
@@ -48,6 +49,7 @@ If the user asks for workflow automation, use `scripts/task.sh` first.
 Current commands:
 
 - `task.sh ls [state]`
+- `task.sh find <id>`
 - `task.sh show <task-id>`
 - `task.sh move <task-id> <state>`
 - `task.sh archive <task-id>`

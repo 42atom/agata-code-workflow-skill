@@ -64,6 +64,7 @@ Current commands:
 
 ```bash
 ./agata-code-workflow/scripts/task.sh ls [state]
+./agata-code-workflow/scripts/task.sh find rp0001
 ./agata-code-workflow/scripts/task.sh show 0061
 ./agata-code-workflow/scripts/task.sh move 0061 doi
 ./agata-code-workflow/scripts/task.sh archive 0061
@@ -73,12 +74,20 @@ Current commands:
 What it does:
 
 - list task files
+- resolve the current path set for a stable document id
 - show the current `tk` file
 - rename a `tk` file across legal states
 - move `arvd` tasks into `issues/archive/YYYY/`
 - validate basic workflow invariants
 - validate that declared `rp` links in `tk.links` actually exist
 - gate `memory: required|done` tasks against `refs/project-memory-aaak.md`
+
+Review note:
+
+- `rp` files are append-style evidence
+- once written, prefer treating them as frozen records in `dne`
+- new rounds should create new `rp` files instead of renaming old ones
+- `task.sh find rp0001` may return multiple files because `rp` acts like a thread anchor, not a single-file id
 
 What it does not do:
 
