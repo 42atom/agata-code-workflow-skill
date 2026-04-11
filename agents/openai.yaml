@@ -1,0 +1,3 @@
+display_name: Agata Code Workflow
+short_description: Manage Agata-style file workflow artifacts
+default_prompt: Use this skill when working with Agata-style file-based task workflow, including tk/pl/rs/rp files, review rounds, filename state transitions, and coauthors.csv.
