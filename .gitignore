@@ -1,3 +1,7 @@
 # macOS Finder metadata
 .DS_Store
 **/.DS_Store
+
+# local tool artifacts
+codedb.snapshot
+logs/

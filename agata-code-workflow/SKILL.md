@@ -13,6 +13,7 @@ Use this skill when work touches the file-based workflow itself:
 - convert loose review notes into task-first review records
 - validate `rvw` readiness, review rounds, or `coauthors.csv`
 - organize issue truth source and review evidence in a local Git repo
+- write dense AAAK summaries for tasks, research, review, or project memory
 
 Do not invent a second state system. The filename state slot is the truth source.
 
@@ -58,6 +59,15 @@ Do not extend it into a scheduler, indexer, or ownership service unless the user
 
 Read `references/workflow-rules.md` when you need exact naming, state, or semantic mapping details.
 
+Read `references/aaak-zh.md` when the user wants high-density semantic compression, memory-style summaries, or protocol-like body blocks.
+
+Read `references/aaak-profiles.md` when the user wants a workflow-specific AAAK profile for:
+
+- `tk`
+- `rs`
+- `rp`
+- project memory notes
+
 Typical cases:
 
 - creating a new workflow file
@@ -65,6 +75,8 @@ Typical cases:
 - checking review round naming
 - checking `rvw` entry requirements
 - checking `coauthors.csv` shape
+- compressing a long task body into a stable summary block
+- drafting project memory in dense structured prose
 
 ## Output Discipline
 

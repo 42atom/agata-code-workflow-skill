@@ -31,6 +31,8 @@ agata-code-workflow-skill/
     scripts/task.sh
     agents/openai.yaml
     references/workflow-rules.md
+    references/aaak-zh.md
+    references/aaak-profiles.md
   doc-sample/
     AGENTS.md
     CLAUDE.md
@@ -82,6 +84,27 @@ What it does not do:
 - no auto indexing
 - no ownership scheduler
 - no second state system
+
+## AAAK Semantic Compression
+
+This skill also includes optional AAAK references for dense agent-readable body writing:
+
+- `agata-code-workflow/references/aaak-zh.md`
+- `agata-code-workflow/references/aaak-profiles.md`
+
+Use AAAK when you want:
+
+- compressed task summaries
+- dense review conclusions
+- compact research notes
+- long-lived project memory
+
+Do not use AAAK to replace:
+
+- filename state truth
+- front matter control fields
+- operator checklists
+- long command procedures
 
 ## Recommended Project Setup
 
