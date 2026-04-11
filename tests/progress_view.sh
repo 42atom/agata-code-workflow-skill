@@ -73,7 +73,7 @@ risk: low
 accept: html and json carry 5-digit ids
 memory: required
 links:
-  - docs/reviews/rp10001.dne.runtime.review-r1-codex.md
+    - rp10001
 ---
 EOF
 
@@ -99,7 +99,7 @@ write_file "$project_root/refs/project-memory-aaak.md" <<'EOF'
 
 题: viewer-memory
 时: 2026-04-11
-锚: tk10001
+锚：tk10001
 决: keep one anchor for history panel
 源: tk10001
 EOF

@@ -95,6 +95,29 @@ assert_eq "$task_stdout" "$archived_path" "find should resolve archived task pat
 
 rm -rf "$project_root"
 
+######## root-level arvd residue should fail check
+
+project_root="$(make_project)"
+write_file "$project_root/issues/tk10011.arvd.runtime.archive-residue.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: root-level arvd files should not survive after archive
+scope: detect half-migrated archive residue
+risk: low
+accept: check fails on residue
+memory: none
+links: []
+---
+EOF
+
+run_task "$project_root" check
+assert_eq "$task_status" "1" "check should fail on root-level arvd residue"
+assert_contains "$task_stderr" "archived task residue detected" "check should explain archive residue failure"
+
+rm -rf "$project_root"
+
 ######## rvw tasks should reject empty verify
 
 project_root="$(make_project)"
@@ -147,6 +170,39 @@ assert_contains "$task_stderr" "rvw task missing rp link" "check should explain 
 
 rm -rf "$project_root"
 
+######## rvw tasks should accept bare rp anchors, 4-space links, and block verify
+
+project_root="$(make_project)"
+write_file "$project_root/issues/tk10006.rvw.runtime.stable-rp-anchor.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: rvw should accept stable rp anchors and multiline verify commands
+scope: parse valid yaml-like frontmatter more robustly
+risk: low
+accept: helper accepts stable rp anchor links
+code_version: abc123
+verify: |
+  bash verify.sh
+  pytest tests/task.sh
+links:
+    - rp10006
+---
+EOF
+write_file "$project_root/docs/reviews/rp10006.dne.runtime.review-r1-codex.md" <<'EOF'
+# tk10006 review-r1
+EOF
+write_file "$project_root/docs/reviews/rp10006.dne.runtime.reply-r1-mobile007kx.md" <<'EOF'
+# tk10006 reply-r1
+EOF
+
+run_task "$project_root" check
+assert_eq "$task_status" "0" "check should accept bare rp anchors and block verify"
+assert_eq "$task_stdout" "ok" "successful stable rp anchor check should print ok"
+
+rm -rf "$project_root"
+
 ######## memory gate should only trust explicit anchors
 
 project_root="$(make_project)"
@@ -181,7 +237,7 @@ write_file "$project_root/refs/project-memory-aaak.md" <<'EOF'
 
 题: tk10004-memory
 时: 2026-04-11
-锚: tk10004
+锚：tk10004
 决: explicit anchor should satisfy memory gate
 源: tk10004
 EOF
@@ -189,6 +245,42 @@ EOF
 run_task "$project_root" check
 assert_eq "$task_status" "0" "check should pass once memory anchor exists"
 assert_eq "$task_stdout" "ok" "successful check should print ok"
+
+rm -rf "$project_root"
+
+######## 4-digit and 5-digit ids should not collide by bare numeric value
+
+project_root="$(make_project)"
+write_file "$project_root/issues/tk0001.tdo.runtime.numeric-collision-four.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: bare numeric ids must stay unique
+scope: detect 4-digit and 5-digit collisions
+risk: low
+accept: colliding ids fail check
+memory: none
+links: []
+---
+EOF
+write_file "$project_root/issues/tk00001.tdo.runtime.numeric-collision-five.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: bare numeric ids must stay unique
+scope: detect 4-digit and 5-digit collisions
+risk: low
+accept: colliding ids fail check
+memory: none
+links: []
+---
+EOF
+
+run_task "$project_root" check
+assert_eq "$task_status" "1" "check should fail on colliding bare numeric task ids"
+assert_contains "$task_stderr" "duplicate or colliding task ids detected" "check should explain numeric id collision"
 
 rm -rf "$project_root"
 

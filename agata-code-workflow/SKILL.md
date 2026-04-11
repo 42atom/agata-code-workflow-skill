@@ -39,9 +39,10 @@ Do not invent a second state system. The filename state slot is the truth source
 4. When a task moves state, rename the existing `tk` file; do not create a parallel file.
 5. When review happens, create new `rp` files; do not encode reply chains as `re.` or `re.re.`.
 6. `rp` records are append-style evidence. Once created, treat them as frozen and prefer `dne`.
-7. Before moving a code task to `rvw`, confirm it has non-empty `accept`, `code_version`, `verify`, and at least one linked `rp`.
-8. `refs/project-memory-aaak.md` is historical memory, not task truth. Memory-gated tasks must anchor there as `锚: tkNNNN` or `锚: tkNNNNN`.
-9. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
+7. In `tk.links`, prefer stable `rpNNNN` / `rpNNNNN` anchors over stateful review filenames.
+8. Before moving a code task to `rvw`, confirm it has non-empty `accept`, `code_version`, `verify`, and at least one linked `rp`.
+9. `refs/project-memory-aaak.md` is historical memory, not task truth. Memory-gated tasks must anchor there as `锚: tkNNNN` / `锚：tkNNNN` or `锚: tkNNNNN` / `锚：tkNNNNN`.
+10. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
 
 ## Bundled Script
 

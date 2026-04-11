@@ -86,9 +86,12 @@ What it does:
 - move `arvd` tasks into `issues/archive/YYYY/`
 - validate basic workflow invariants
 - validate that declared `rp` links in `tk.links` actually exist
+- accept stable `rp0001` / `rp10001` review anchors in `tk.links` and prefer them over stateful review paths
 - require non-empty `accept` / `code_version` / `verify` on `rvw` tasks
 - require at least one linked `rp` evidence record on `rvw` tasks
-- gate `memory: required|done` tasks against `refs/project-memory-aaak.md` via `锚: tkNNNN` or `锚: tkNNNNN`
+- reject root-level `tk*.arvd.*.md` archive residue in `issues/`
+- reject colliding bare numeric ids such as `tk0001` vs `tk00001`
+- gate `memory: required|done` tasks against `refs/project-memory-aaak.md` via `锚: tkNNNN` / `锚：tkNNNN` or `锚: tkNNNNN` / `锚：tkNNNNN`
 - warn on stale online `coauthors.csv` rows
 - generate `AIDOCS/agata-workflow-status/progress-data.json`
 - render a self-contained `AIDOCS/agata-workflow-status/progress-view.html`
@@ -112,6 +115,7 @@ Review note:
 - once written, prefer treating them as frozen records in `dne`
 - new rounds should create new `rp` files instead of renaming old ones
 - `task.sh find rp0001` may return multiple files because `rp` acts like a thread anchor, not a single-file id
+- for `tk.links`, prefer stable `rp0001` / `rp10001` anchors over stateful filenames
 
 What it does not do:
 

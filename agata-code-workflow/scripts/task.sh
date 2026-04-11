@@ -63,6 +63,15 @@ normalize_task_id() {
   die "task id must be 4 or 5 digits, or tkNNNN / tkNNNNN"
 }
 
+strip_wrapping_quotes() {
+  local value="$1"
+  value="${value%\"}"
+  value="${value#\"}"
+  value="${value%\'}"
+  value="${value#\'}"
+  printf '%s\n' "$value"
+}
+
 find_task_file() {
   local root="$1"
   local task_id="$2"
@@ -103,11 +112,39 @@ extract_frontmatter_scalar() {
 
   awk -v wanted="$key" '
     NR == 1 && $0 == "---" { in_yaml = 1; next }
-    in_yaml && $0 == "---" { exit }
+    in_yaml && $0 == "---" {
+      if (in_block) {
+        print block_value
+      }
+      exit
+    }
     !in_yaml { next }
+
+    in_block {
+      if ($0 ~ /^[^[:space:]]/) {
+        print block_value
+        exit
+      }
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      if (block_started) {
+        block_value = block_value ORS line
+      } else {
+        block_value = line
+        block_started = 1
+      }
+      next
+    }
+
     $0 ~ ("^" wanted ":[[:space:]]*") {
       line = $0
       sub("^" wanted ":[[:space:]]*", "", line)
+      if (line == "|" || line == ">") {
+        in_block = 1
+        block_started = 0
+        block_value = ""
+        next
+      }
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
       gsub(/^'\''|'\''$/, "", line)
       gsub(/^"|"$/, "", line)
@@ -117,18 +154,39 @@ extract_frontmatter_scalar() {
   ' "$file"
 }
 
-rename_task_state() {
+frontmatter_has_key() {
+  local file="$1"
+  local key="$2"
+
+  awk -v wanted="$key" '
+    NR == 1 && $0 == "---" { in_yaml = 1; next }
+    in_yaml && $0 == "---" { exit }
+    !in_yaml { next }
+    $0 ~ ("^" wanted ":[[:space:]]*") { found = 1; exit }
+    END { exit found ? 0 : 1 }
+  ' "$file"
+}
+
+task_basename_with_state() {
   local file="$1"
   local new_state="$2"
-  local dir base stem prefix after_prefix suffix new_file
+  local base stem prefix after_prefix suffix
 
-  dir="$(dirname "$file")"
   base="$(basename "$file")"
   stem="${base%.*}"
   prefix="${stem%%.*}"
   after_prefix="${stem#*.}"
   suffix="${after_prefix#*.}"
-  new_file="${dir}/${prefix}.${new_state}.${suffix}.md"
+  printf '%s\n' "${prefix}.${new_state}.${suffix}.md"
+}
+
+rename_task_state() {
+  local file="$1"
+  local new_state="$2"
+  local dir new_file
+
+  dir="$(dirname "$file")"
+  new_file="${dir}/$(task_basename_with_state "$file" "$new_state")"
 
   mv "$file" "$new_file"
   echo "$new_file"
@@ -183,9 +241,9 @@ memory_entry_exists() {
   memory_file="$(project_memory_file "$root")"
   [[ -f "$memory_file" ]] || return 1
   awk -v wanted="$task_id" '
-    /^锚:[[:space:]]*/ {
+    /^锚[:：][[:space:]]*/ {
       line = $0
-      sub(/^锚:[[:space:]]*/, "", line)
+      sub(/^锚[:：][[:space:]]*/, "", line)
       gsub(/[|,]/, " ", line)
       count = split(line, items, /[[:space:]]+/)
       for (i = 1; i <= count; i++) {
@@ -321,17 +379,17 @@ cmd_archive() {
   task_id="$(normalize_task_id "$2")"
   file="$(find_task_file "$root" "$task_id")"
   state="$(task_state_from_file "$file")"
+  year="$(date +%Y)"
+  archive_dir="$root/issues/archive/${year}"
+  mkdir -p "$archive_dir"
 
   if [[ "$state" != "arvd" ]]; then
     can_transition "$state" "arvd" || die "task in state ${state} cannot be archived"
     assert_memory_gate_for_close "$root" "$file" "arvd"
-    file="$(rename_task_state "$file" "arvd")"
+    archived_file="${archive_dir}/$(task_basename_with_state "$file" "arvd")"
+  else
+    archived_file="${archive_dir}/$(basename "$file")"
   fi
-
-  year="$(date +%Y)"
-  archive_dir="$root/issues/archive/${year}"
-  mkdir -p "$archive_dir"
-  archived_file="${archive_dir}/$(basename "$file")"
 
   mv "$file" "$archived_file"
   echo "$archived_file"
@@ -341,15 +399,42 @@ check_duplicate_task_ids() {
   local root="$1"
   local duplicates
 
-  duplicates="$(find "$root/issues" -maxdepth 1 -type f -name 'tk*.md' -print \
-    | sed 's#.*/##' \
-    | cut -d. -f1 \
-    | sort \
-    | uniq -d)"
+  if ! duplicates="$(
+    python3 - "$root/issues" <<'PY'
+from pathlib import Path
+import re
+import sys
 
-  if [[ -n "$duplicates" ]]; then
+root = Path(sys.argv[1])
+pattern = re.compile(r"^(tk\d{4,5})\.")
+
+exact_ids = {}
+bare_ids = {}
+
+for path in sorted(root.rglob("tk*.md")):
+    match = pattern.match(path.name)
+    if not match:
+        continue
+    task_id = match.group(1)
+    exact_ids.setdefault(task_id, []).append(str(path))
+    bare_ids.setdefault(f"tk{int(task_id[2:])}", set()).add(task_id)
+
+problems = []
+for task_id, paths in sorted(exact_ids.items()):
+    if len(paths) > 1:
+        problems.append(f"exact:{task_id} -> " + ", ".join(paths))
+
+for bare_id, task_ids in sorted(bare_ids.items()):
+    if len(task_ids) > 1:
+        problems.append(f"bare:{bare_id} -> " + ", ".join(sorted(task_ids)))
+
+if problems:
+    print("\n".join(problems))
+    raise SystemExit(1)
+PY
+  )"; then
     echo "$duplicates" >&2
-    die "duplicate task ids detected"
+    die "duplicate or colliding task ids detected"
   fi
 }
 
@@ -358,9 +443,9 @@ check_rvw_fields() {
   local file accept code_version verify
 
   while IFS= read -r file; do
-    grep -q '^accept:' "$file" || die "missing accept: $file"
-    grep -q '^code_version:' "$file" || die "missing code_version: $file"
-    grep -q '^verify:' "$file" || die "missing verify: $file"
+    frontmatter_has_key "$file" "accept" || die "missing accept: $file"
+    frontmatter_has_key "$file" "code_version" || die "missing code_version: $file"
+    frontmatter_has_key "$file" "verify" || die "missing verify: $file"
 
     accept="$(extract_frontmatter_scalar "$file" "accept")"
     code_version="$(extract_frontmatter_scalar "$file" "code_version")"
@@ -395,8 +480,8 @@ extract_frontmatter_links() {
     !in_yaml { next }
 
     in_links {
-      if ($0 ~ /^  - /) {
-        sub(/^  - /, "", $0)
+      if ($0 ~ /^[[:space:]]*-[[:space:]]+/) {
+        sub(/^[[:space:]]*-[[:space:]]+/, "", $0)
         print $0
         next
       }
@@ -435,10 +520,7 @@ normalize_link_target() {
   local root="$1"
   local target="$2"
 
-  target="${target%\"}"
-  target="${target#\"}"
-  target="${target%\'}"
-  target="${target#\'}"
+  target="$(strip_wrapping_quotes "$target")"
 
   if [[ "$target" = /* ]]; then
     echo "$target"
@@ -453,12 +535,28 @@ normalize_link_target() {
   echo "$root/$target"
 }
 
+find_review_anchor_matches() {
+  local root="$1"
+  local review_id="$2"
+
+  find "$root/docs/reviews" -maxdepth 1 -type f -name "${review_id}.*.md" 2>/dev/null | sort
+}
+
 task_has_rp_link() {
   local root="$1"
   local file="$2"
-  local raw_link normalized base
+  local raw_link raw_target normalized base
 
   while IFS= read -r raw_link; do
+    raw_target="$(strip_wrapping_quotes "$raw_link")"
+
+    if [[ "$raw_target" =~ ^rp${ID_DIGITS_RE}$ ]]; then
+      if find_review_anchor_matches "$root" "$raw_target" | grep -q .; then
+        return 0
+      fi
+      continue
+    fi
+
     normalized="$(normalize_link_target "$root" "$raw_link")"
     base="$(basename "$normalized")"
 
@@ -472,10 +570,19 @@ task_has_rp_link() {
 
 check_tk_rp_links_exist() {
   local root="$1"
-  local file raw_link normalized base
+  local file raw_link raw_target normalized base
 
   while IFS= read -r file; do
     while IFS= read -r raw_link; do
+      raw_target="$(strip_wrapping_quotes "$raw_link")"
+
+      if [[ "$raw_target" =~ ^rp${ID_DIGITS_RE}$ ]]; then
+        if ! find_review_anchor_matches "$root" "$raw_target" | grep -q .; then
+          die "missing rp link target: $file -> $raw_link"
+        fi
+        continue
+      fi
+
       normalized="$(normalize_link_target "$root" "$raw_link")"
       base="$(basename "$normalized")"
 
@@ -486,6 +593,17 @@ check_tk_rp_links_exist() {
       [[ -f "$normalized" ]] || die "missing rp link target: $file -> $raw_link"
     done < <(extract_frontmatter_links "$file")
   done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.md' | sort)
+}
+
+check_arvd_residue() {
+  local root="$1"
+  local residue
+
+  residue="$(find "$root/issues" -maxdepth 1 -type f -name 'tk*.arvd.*.md' | sort)"
+  if [[ -n "$residue" ]]; then
+    echo "$residue" >&2
+    die "archived task residue detected in issues/"
+  fi
 }
 
 check_legacy_reply_chains() {
@@ -578,6 +696,7 @@ cmd_check() {
   local root="$1"
 
   check_duplicate_task_ids "$root"
+  check_arvd_residue "$root"
   check_rvw_fields "$root"
   check_rp_names "$root"
   check_tk_rp_links_exist "$root"

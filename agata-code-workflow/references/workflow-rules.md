@@ -55,6 +55,7 @@ state：
 
 - `id` 永远在最前
 - `id` 支持 4 位或 5 位数字；现有 4 位文件无需迁移
+- 同一项目内不允许裸数字碰撞；禁止 `tk0001` 与 `tk00001` 共存
 - `board` 用模块短词或场景码
 - `slug` 只允许 `[a-z0-9-]`
 - owner / 时间 / 原因进 front matter，不进文件名
@@ -126,7 +127,7 @@ handle,owner,engine,role,status,updated_at,note
 
 记忆锚点：
 
-- 对带 `memory: required | done` 的任务，记忆文件必须显式写 `锚: tkNNNN` 或 `锚: tkNNNNN`
+- 对带 `memory: required | done` 的任务，记忆文件必须显式写 `锚: tkNNNN` / `锚：tkNNNN` 或 `锚: tkNNNNN` / `锚：tkNNNNN`
 - 只认稳定 id 锚点，不认正文里偶然出现一次的 task id
 
 ## 7. 状态与评审规则
@@ -147,6 +148,8 @@ handle,owner,engine,role,status,updated_at,note
 - `rp` 负责评审证据
 - `rp` 不替代 `tk`
 - `tk.links` 必须挂相关 `rp`
+- `tk.links` 可挂具体 `rp` 文件，也可挂稳定 `rpNNNN` / `rpNNNNN` 锚点
+- 默认优先挂稳定 `rp` 锚点，避免把 `rp` 的 state 槽写死进链接
 - review 结论要回写到 `tk`
 
 review 命名规则：
@@ -182,7 +185,17 @@ review 命名规则：
 
 - `accept` / `code_version` / `verify` 不能为空值
 - `verify` 是验证口径或命令，不是“已测试”这类空话
+- `verify` 可写成多行块，比如 `verify: |`
+- `links` 可写成 inline 数组，也可写成缩进列表
 - `rvw` 任务至少要挂一个有效 `rp` 证据链接
+
+## 8.1 归档残留
+
+规则：
+
+- `arvd` 是终态，不应残留在 `issues/` 根目录
+- 归档后的任务应位于 `issues/archive/YYYY/`
+- `check` 发现根目录 `tk*.arvd.*.md` 时必须失败
 
 ## 9. 提交规范
 

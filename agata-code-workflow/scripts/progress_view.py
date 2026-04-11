@@ -114,23 +114,47 @@ def parse_frontmatter(text: str) -> tuple[dict[str, Any], str]:
             index += 1
             continue
 
-        if re.match(r"^[A-Za-z_][A-Za-z0-9_-]*:\s*$", raw):
-            key = raw.split(":", 1)[0].strip()
-            items: list[str] = []
-            index += 1
-            while index < len(lines):
-                nested = lines[index]
-                if nested.startswith("  - "):
-                    items.append(strip_quotes(nested[4:]))
-                    index += 1
-                    continue
-                break
-            frontmatter[key] = items
-            continue
-
         match = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", raw)
         if match:
             key, value = match.groups()
+            base_indent = len(raw) - len(raw.lstrip())
+
+            if value in {"|", ">"}:
+                block: list[str] = []
+                index += 1
+                while index < len(lines):
+                    nested = lines[index]
+                    nested_stripped = nested.strip()
+                    nested_indent = len(nested) - len(nested.lstrip())
+                    if nested_stripped and nested_indent <= base_indent:
+                        break
+                    block.append(nested.lstrip() if nested_stripped else "")
+                    index += 1
+                frontmatter[key] = "\n".join(block).strip("\n")
+                continue
+
+            if value == "":
+                items: list[str] = []
+                probe = index + 1
+                while probe < len(lines):
+                    nested = lines[probe]
+                    nested_stripped = nested.strip()
+                    nested_indent = len(nested) - len(nested.lstrip())
+                    if not nested_stripped:
+                        probe += 1
+                        continue
+                    if nested_indent <= base_indent:
+                        break
+                    dash_match = re.match(r"^\s*-\s+(.*)$", nested)
+                    if not dash_match:
+                        break
+                    items.append(strip_quotes(dash_match.group(1)))
+                    probe += 1
+                if items:
+                    frontmatter[key] = items
+                    index = probe
+                    continue
+
             cleaned = strip_quotes(value)
             if cleaned.startswith("[") and cleaned.endswith("]"):
                 content = cleaned[1:-1].strip()
@@ -191,6 +215,40 @@ def normalize_link(project_root: Path, raw_link: str) -> Path:
     return project_root / target
 
 
+def find_review_anchor_matches(project_root: Path, review_id: str) -> list[Path]:
+    review_root = project_root / "docs" / "reviews"
+    if not review_root.is_dir():
+        return []
+    return sorted(review_root.glob(f"{review_id}.*.md"))
+
+
+def resolve_link_entry(project_root: Path, raw_link: str) -> dict[str, Any]:
+    target = strip_quotes(raw_link)
+
+    if re.fullmatch(r"rp\d{4,5}", target):
+        matches = find_review_anchor_matches(project_root, target)
+        first = matches[0].resolve() if matches else (project_root / "docs" / "reviews" / target).resolve()
+        return {
+            "raw": raw_link,
+            "path": str(first),
+            "relative_path": str(first).replace(str(project_root.resolve()) + "/", ""),
+            "label": target,
+            "exists": bool(matches),
+            "file_url": matches[0].resolve().as_uri() if matches else "",
+        }
+
+    normalized = normalize_link(project_root, raw_link)
+    exists = normalized.exists()
+    return {
+        "raw": raw_link,
+        "path": str(normalized.resolve()),
+        "relative_path": str(normalized.resolve()).replace(str(project_root.resolve()) + "/", ""),
+        "label": normalized.name or raw_link,
+        "exists": exists,
+        "file_url": normalized.resolve().as_uri() if exists else "",
+    }
+
+
 def derive_relation_summary(doc: dict[str, Any], siblings: list[dict[str, Any]], linked_entries: list[dict[str, Any]]) -> dict[str, Any]:
     kind_counts = Counter(item["kind"] for item in siblings)
     derived_bits = [
@@ -227,18 +285,7 @@ def parse_doc_file(path: Path, project_root: Path) -> dict[str, Any] | None:
 
     normalized_links = []
     for raw in links:
-        normalized = normalize_link(project_root, raw)
-        exists = normalized.exists()
-        normalized_links.append(
-            {
-                "raw": raw,
-                "path": str(normalized.resolve()),
-                "relative_path": str(normalized.resolve()).replace(str(project_root.resolve()) + "/", ""),
-                "label": normalized.name or raw,
-                "exists": exists,
-                "file_url": normalized.resolve().as_uri() if exists else "",
-            }
-        )
+        normalized_links.append(resolve_link_entry(project_root, raw))
 
     record = {
         "doc_id": f"{match.group('kind')}{match.group('digits')}",
@@ -283,8 +330,9 @@ def parse_memory_anchors(memory_file: Path) -> list[str]:
     anchors: list[str] = []
     for raw in memory_file.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
-        if line.startswith("锚:"):
-            value = line.split(":", 1)[1].strip()
+        match = re.match(r"^锚[:：]\s*(.*)$", line)
+        if match:
+            value = match.group(1).strip()
             for item in re.split(r"[|,\s]+", value):
                 if item:
                     anchors.append(item)
