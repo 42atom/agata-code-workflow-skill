@@ -68,6 +68,7 @@ What it does:
 - rename a `tk` file across legal states
 - move `arvd` tasks into `issues/archive/YYYY/`
 - validate basic workflow invariants
+- validate that declared `rp` links in `tk.links` actually exist
 
 What it does not do:
 

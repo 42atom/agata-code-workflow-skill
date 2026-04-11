@@ -222,6 +222,91 @@ check_rp_names() {
   done < <(find "$root/docs/reviews" -maxdepth 1 -type f -name '*.md' | sort)
 }
 
+extract_frontmatter_links() {
+  local file="$1"
+
+  awk '
+    NR == 1 && $0 == "---" { in_yaml = 1; next }
+    in_yaml && $0 == "---" { exit }
+    !in_yaml { next }
+
+    in_links {
+      if ($0 ~ /^  - /) {
+        sub(/^  - /, "", $0)
+        print $0
+        next
+      }
+      if ($0 ~ /^[^[:space:]]/) {
+        in_links = 0
+      }
+      if (!in_links) {
+        next
+      }
+    }
+
+    /^links:[[:space:]]*\[/ {
+      line = $0
+      sub(/^links:[[:space:]]*\[/, "", line)
+      sub(/\][[:space:]]*$/, "", line)
+      count = split(line, items, /,[[:space:]]*/)
+      for (i = 1; i <= count; i++) {
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", items[i])
+        gsub(/^'\''|'\''$/, "", items[i])
+        gsub(/^"|"$/, "", items[i])
+        if (items[i] != "") {
+          print items[i]
+        }
+      }
+      next
+    }
+
+    /^links:[[:space:]]*$/ {
+      in_links = 1
+      next
+    }
+  ' "$file"
+}
+
+normalize_link_target() {
+  local root="$1"
+  local target="$2"
+
+  target="${target%\"}"
+  target="${target#\"}"
+  target="${target%\'}"
+  target="${target#\'}"
+
+  if [[ "$target" = /* ]]; then
+    echo "$target"
+    return 0
+  fi
+
+  if [[ "$target" =~ ^rp[0-9]{4}\..*\.md$ ]]; then
+    echo "$root/docs/reviews/$target"
+    return 0
+  fi
+
+  echo "$root/$target"
+}
+
+check_tk_rp_links_exist() {
+  local root="$1"
+  local file raw_link normalized base
+
+  while IFS= read -r file; do
+    while IFS= read -r raw_link; do
+      normalized="$(normalize_link_target "$root" "$raw_link")"
+      base="$(basename "$normalized")"
+
+      if [[ ! "$base" =~ ^rp[0-9]{4}\..*\.md$ ]]; then
+        continue
+      fi
+
+      [[ -f "$normalized" ]] || die "missing rp link target: $file -> $raw_link"
+    done < <(extract_frontmatter_links "$file")
+  done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.md' | sort)
+}
+
 check_legacy_reply_chains() {
   local root="$1"
   local legacy
@@ -239,6 +324,7 @@ cmd_check() {
   check_duplicate_task_ids "$root"
   check_rvw_fields "$root"
   check_rp_names "$root"
+  check_tk_rp_links_exist "$root"
   check_legacy_reply_chains "$root"
   echo "ok"
 }
