@@ -29,7 +29,9 @@ agata-code-workflow-skill/
   agata-code-workflow/
     SKILL.md
     scripts/task.sh
+    scripts/progress_view.py
     agents/openai.yaml
+    templates/progress-view.html
     references/workflow-rules.md
     references/aaak-zh.md
     references/aaak-profiles.md
@@ -57,6 +59,7 @@ Then, in each project that uses this workflow, keep the project-specific entrypo
 This repo also ships a thin workflow helper:
 
 - `agata-code-workflow/scripts/task.sh`
+- `agata-code-workflow/scripts/progress_view.py`
 
 It is intentionally small. It does not store task state anywhere else.
 
@@ -71,6 +74,7 @@ Current commands:
 ./agata-code-workflow/scripts/task.sh move 10061 doi
 ./agata-code-workflow/scripts/task.sh archive 10061
 ./agata-code-workflow/scripts/task.sh check
+./agata-code-workflow/scripts/progress_view.py --project-root . --no-open
 ```
 
 What it does:
@@ -86,6 +90,16 @@ What it does:
 - require at least one linked `rp` evidence record on `rvw` tasks
 - gate `memory: required|done` tasks against `refs/project-memory-aaak.md` via `锚: tkNNNN` or `锚: tkNNNNN`
 - warn on stale online `coauthors.csv` rows
+- generate `AIDOCS/agata-workflow-status/progress-data.json`
+- render a self-contained `AIDOCS/agata-workflow-status/progress-view.html`
+- open the rendered HTML in the default browser without file-fetch CORS issues
+
+Progress view note:
+
+- the reusable template lives in `agata-code-workflow/templates/progress-view.html`
+- the generated viewer embeds the JSON snapshot, so `file://` opening still works
+- current view focuses on open workflow truth + derived relations
+- history view focuses on closed/archive flow + recent document activity
 
 Review note:
 

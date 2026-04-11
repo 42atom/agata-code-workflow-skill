@@ -14,6 +14,7 @@ Use this skill when work touches the file-based workflow itself:
 - validate `rvw` readiness, review rounds, or `coauthors.csv`
 - organize issue truth source and review evidence in a local Git repo
 - write dense AAAK summaries for tasks, research, review, or project memory
+- generate a read-only progress board when the user asks to see current project status
 
 Do not invent a second state system. The filename state slot is the truth source.
 
@@ -54,8 +55,10 @@ Current commands:
 - `task.sh move <task-id> <state>`
 - `task.sh archive <task-id>`
 - `task.sh check`
+- `progress_view.py [--project-root <path>] [--no-open]`
 
-Use it for legal rename flow, basic validation, archive moves, and memory-gated close checks.
+Use `task.sh` for legal rename flow, basic validation, archive moves, and memory-gated close checks.
+Use `progress_view.py` when the user wants a dense read-only HTML view of current workflow status and history.
 Do not extend it into a scheduler, indexer, or ownership service unless the user explicitly asks.
 
 ## When To Read References

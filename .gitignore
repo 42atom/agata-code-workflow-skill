@@ -5,3 +5,7 @@
 # local tool artifacts
 codedb.snapshot
 logs/
+
+# python cache
+__pycache__/
+*.pyc
