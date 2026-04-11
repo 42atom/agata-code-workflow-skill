@@ -31,6 +31,12 @@ agata-code-workflow-skill/
     scripts/task.sh
     agents/openai.yaml
     references/workflow-rules.md
+  doc-sample/
+    AGENTS.md
+    CLAUDE.md
+    coauthors.csv
+    issues/
+    docs/reviews/
 ```
 
 ## How To Use
@@ -135,6 +141,18 @@ The intended split is:
 - repository files: actual truth source and review evidence
 
 This avoids copying the same rules into every repository.
+
+## doc-sample
+
+The repo also includes a minimal sample project skeleton under `doc-sample/`.
+
+Use it as:
+
+- a starting point for a new repo
+- a naming reference
+- a concrete example of `pl` / `rs` / `tk` / `rp`
+
+Do not treat it as a second truth source. It is only a scaffold.
 
 ## Notes
 
