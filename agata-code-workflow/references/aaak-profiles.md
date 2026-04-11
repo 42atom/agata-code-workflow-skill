@@ -15,6 +15,12 @@ For workflow files:
 
 AAAK should usually appear near the top of the body.
 
+Style rule:
+
+- 文言优先，白话兜底
+- command, path, enum, verify, acceptance, source locator keep plain
+- if brevity harms judgment, use plain Chinese immediately
+
 ## AAAK-TK
 
 Use for executable task files.
@@ -62,6 +68,21 @@ Example:
 源: commit 3dff5c2|docs/operator-checklist-tk0059.md
 ```
 
+More compressed variant:
+
+```text
+题: 快产先取
+时: 2026-04-10
+态: rvw
+项: quick 先于 batch backlog
+因: 快览久饿
+范: claim 次序
+非: 不拆 worker|不改 renderer
+验: quick 先取|batch 不夺
+依: tk0058
+源: commit 3dff5c2
+```
+
 ## AAAK-RS
 
 Use for research, facts, and recommendation notes.
@@ -97,6 +118,19 @@ Example:
 决: 收口为单心跳
 风: 低
 待: 评估 provider vs event relay
+源: app-navbar.jsx|task-queue.jsx
+```
+
+More compressed variant:
+
+```text
+题: 概览轮询
+时: 2026-04-11
+问: 是否双拉
+实: navbar|queue 双取 overview
+决: 收一心跳
+风: 低
+待: 估 provider vs event relay
 源: app-navbar.jsx|task-queue.jsx
 ```
 
@@ -139,6 +173,19 @@ Example:
 源: commit 9297321|render_repo.py|runner.py
 ```
 
+More compressed variant:
+
+```text
+题: tk0061
+时: 2026-04-11
+轮: r1
+决: 不过
+阻: 跨午夜复计
+因: item归日|batch总数混写
+验: 不得重放 output_count
+源: commit 9297321|render_repo.py|runner.py
+```
+
 ## AAAK-MEM
 
 Use for project history and long-lived memory notes.
@@ -172,6 +219,18 @@ Example:
 链: follows=旧 docs/opus-feedback 流
 评: 新增内容按新规，历史文档暂不批量迁移
 源: agata-code-workflow/references/workflow-rules.md
+```
+
+More compressed variant:
+
+```text
+题: 评审制式迁移
+时: 2026-04-11
+决: review 改 task-first+rN
+因: re.re 过深|grep 不利
+链: follows=旧 docs/opus-feedback 流
+评: 新文从新|旧档暂存
+源: workflow-rules.md
 ```
 
 ## Placement

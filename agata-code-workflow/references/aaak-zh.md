@@ -67,6 +67,41 @@ Common operators:
 ≠   not same
 ```
 
+## Style Strategy
+
+Default style:
+
+```text
+文言优先，白话兜底
+```
+
+Meaning:
+
+- if classical phrasing makes the line shorter without changing meaning, prefer it
+- if classical phrasing introduces ambiguity, immediately fall back to plain Chinese
+- compression is for expression, not for removing semantic boundary
+
+Never classicalize these by force:
+
+- shell commands
+- file paths
+- enum values
+- error messages
+- acceptance criteria
+- `未定义` / `禁推` boundaries
+- commit ids, URLs, code symbols, API names
+
+Mixed style is allowed:
+
+- stable field keys
+- values may mix 文言, 白话, English, paths, hashes
+
+Judgment rule:
+
+```text
+能简而不歧，则从文言；一有歧义，立退白话
+```
+
 ## Core Field Families
 
 For workflow usage, the most useful fields are:
@@ -177,3 +212,9 @@ Best fit:
 - `rp` conclusions
 - top summary block in `tk`
 - project memory notes
+
+Weak fit:
+
+- operator procedures
+- long command walkthroughs
+- high-stakes legal or evidence text
