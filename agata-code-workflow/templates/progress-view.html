@@ -229,7 +229,7 @@
 
       .issue-row {
         display: grid;
-        grid-template-columns: 18px 74px minmax(0, 1fr) 84px minmax(150px, auto) 100px;
+        grid-template-columns: 18px 92px minmax(0, 1fr) 84px minmax(150px, auto) 100px;
         gap: 10px;
         align-items: center;
         padding: 3px 6px;
@@ -238,9 +238,14 @@
         transition: background 0.05s;
         min-height: 36px;
         font-size: 12px;
+        position: relative;
+        z-index: 1;
       }
 
-      .issue-row:hover { background: var(--bg-hover); }
+      .issue-row:hover {
+        background: var(--bg-hover);
+        z-index: 12;
+      }
 
       .issue-status-icon {
         width: 14px; height: 14px;
@@ -248,6 +253,67 @@
       }
 
       .issue-id { font-family: var(--font-mono); font-size: 11px; color: var(--text-quiet); }
+
+      .issue-id-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        min-width: 0;
+        z-index: 14;
+      }
+
+      .issue-info {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--bg-hover);
+        color: var(--text-quiet);
+        font-family: var(--font-sans);
+        font-size: 10px;
+        font-weight: 700;
+        cursor: help;
+        flex-shrink: 0;
+      }
+
+      .issue-tooltip {
+        position: absolute;
+        left: 0;
+        top: calc(100% + 8px);
+        min-width: 200px;
+        max-width: 320px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #eef6ff;
+        color: #174ea6;
+        border: 1px solid #cfe3ff;
+        font-family: var(--font-sans);
+        font-size: 11px;
+        line-height: 1.35;
+        box-shadow: 0 8px 24px rgba(23, 78, 166, 0.12);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.08s ease;
+        z-index: 40;
+      }
+
+      .issue-info:hover .issue-tooltip,
+      .issue-info:focus-visible .issue-tooltip {
+        opacity: 1;
+      }
+
+      .tooltip-group + .tooltip-group {
+        margin-top: 6px;
+      }
+
+      .tooltip-label {
+        color: #4f7dcf;
+        margin-right: 6px;
+      }
 
       .issue-content {
         min-width: 0;
@@ -287,9 +353,15 @@
       }
 
       .issue-board {
-        font-size: 10px; color: var(--text-quiet); padding: 1px 4px;
-        background: var(--bg-side); border-radius: var(--radius-sm);
-        border: 1px solid var(--border-quiet);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 10px;
+        color: var(--text-quiet);
+        padding: 1px 6px;
+        background: var(--bg-side);
+        border-radius: 999px;
       }
 
       .issue-meta {
@@ -319,6 +391,12 @@
         color: var(--accent);
         background: var(--accent-soft);
         border-color: rgba(0, 106, 220, 0.18);
+      }
+
+      .signal-chip.warning {
+        color: #b45309;
+        background: #fff7ed;
+        border-color: #fed7aa;
       }
 
       /* Status Icons */
@@ -354,7 +432,7 @@
 
       @media (max-width: 980px) {
         .issue-row {
-          grid-template-columns: 18px 66px minmax(0, 1fr) 80px;
+          grid-template-columns: 18px 82px minmax(0, 1fr) 80px;
           grid-template-areas:
             "icon id content date"
             ". . meta meta";
@@ -512,6 +590,63 @@
         return items.map(item => `<span class="signal-chip ${accent ? 'accent' : ''}">${escapeHtml(item)}</span>`).join('');
       }
 
+      function warningChips(items) {
+        if (!items || items.length === 0) return '';
+        return items.map(item => `<span class="signal-chip warning">${escapeHtml(item)}</span>`).join('');
+      }
+
+      function infoGroups(issue, relationBits, evidenceBits) {
+        const groups = [];
+        if (relationBits.length) {
+          groups.push({ label: '关联', items: relationBits });
+        }
+        const linkBits = (issue.relation?.linked_bits || []).slice(0, 5);
+        if (linkBits.length) {
+          groups.push({ label: '链接', items: linkBits });
+        }
+        if (evidenceBits.length) {
+          groups.push({ label: '说明', items: evidenceBits });
+        }
+        return groups;
+      }
+
+      function infoButton(issue, relationBits, evidenceBits) {
+        const groups = infoGroups(issue, relationBits, evidenceBits);
+        if (groups.length === 0) return '';
+        return `
+          <span class="issue-info" tabindex="0" aria-label="更多信息" onclick="event.stopPropagation()">
+            i
+            <span class="issue-tooltip">
+              ${groups.map(group => `
+                <div class="tooltip-group">
+                  <span class="tooltip-label">${escapeHtml(group.label)}</span>
+                  <span>${escapeHtml(group.items.join(' · '))}</span>
+                </div>
+              `).join('')}
+            </span>
+          </span>
+        `;
+      }
+
+      function warningBits(issue) {
+        const warnings = [];
+        const brokenLinks = (issue.links || []).filter(item => !item.exists).length;
+        const linkedRpCount = (issue.links || []).filter(item => /^rp\d{4,5}\./.test(item.label || '')).length;
+
+        if (brokenLinks > 0) {
+          warnings.push(brokenLinks === 1 ? 'broken link' : `broken links ×${brokenLinks}`);
+        }
+        if ((issue.memory === 'required' || issue.memory === 'done') && !issue.has_memory_anchor) {
+          warnings.push('memory unanchored');
+        }
+        if (issue.kind === 'tk' && issue.state === 'rvw') {
+          if (!issue.verify) warnings.push('verify missing');
+          if (!issue.code_version) warnings.push('code missing');
+          if (linkedRpCount === 0) warnings.push('rp missing');
+        }
+        return warnings;
+      }
+
       function historyEventRow(event) {
         return {
           ...event,
@@ -571,35 +706,34 @@
 
       function renderIssueRow(issue) {
         const priorityClass = issue.priority ? `prio-${issue.priority}` : '';
-        const relationBits = [
-          ...(issue.relation?.derived_bits || []).slice(0, 3),
-          ...(issue.relation?.linked_bits || []).slice(0, 2),
-        ];
+        const relationBits = [...(issue.relation?.derived_bits || []).slice(0, 5)];
         const evidenceBits = [
           issue.verify ? 'verify' : '',
-          issue.code_version ? 'code' : '',
+          issue.code_version ? `code ${issue.code_version}` : '',
           issue.memory && issue.memory !== 'none' ? `memory ${issue.memory}` : '',
           issue.has_memory_anchor ? 'anchored' : '',
         ].filter(Boolean);
+        const warnings = warningBits(issue);
         return `
           <div class="issue-row" data-url="${escapeHtml(issue.file_url || '')}" onclick="if (this.dataset.url) window.open(this.dataset.url, '_blank')">
             ${renderStatusIcon(issue.state)}
-            <div class="issue-id">${escapeHtml(issue.doc_id)}</div>
+            <div class="issue-id-wrap">
+              <div class="issue-id">${escapeHtml(issue.doc_id)}</div>
+              ${infoButton(issue, relationBits, evidenceBits)}
+            </div>
             <div class="issue-content">
               <div class="issue-mainline">
                 <div class="issue-title">${escapeHtml(issue.title)}</div>
                 ${issue.summary ? `<span class="issue-summary-sep">·</span><div class="issue-summary">${escapeHtml(issue.summary)}</div>` : ''}
               </div>
               <div class="issue-detailline">
-                ${signalChips(relationBits)}
-                ${signalChips(evidenceBits, true)}
+                ${warningChips(warnings)}
               </div>
             </div>
             <div class="issue-board">${escapeHtml(issue.board || '—')}</div>
             <div class="issue-meta">
               <span class="${priorityClass}">${escapeHtml(issue.priority || '—')}</span>
               <span class="meta-item">${escapeHtml(issue.assignee || issue.owner || '—')}</span>
-              ${issue.path ? `<span class="meta-item">${escapeHtml(issue.path)}</span>` : ''}
             </div>
             <div class="issue-id" style="text-align: right;">${escapeHtml(issue.modified_display)}</div>
           </div>
