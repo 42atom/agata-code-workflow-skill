@@ -15,6 +15,10 @@ Use this skill when work touches the file-based workflow itself:
 - organize issue truth source and review evidence in a local Git repo
 - write dense AAAK summaries for tasks, research, review, or project memory
 - generate a read-only progress board when the user asks to see current project status
+- start implementation in a dedicated `git worktree` for the current task
+- judge whether a worktree is clean, single-task dirty, or contaminated by another task line
+- run review or verification in an isolated `git worktree` when collaboration would otherwise collide
+- close each finished round with a fixed next-step marker line
 
 Do not invent a second state system. The filename state slot is the truth source.
 
@@ -35,18 +39,31 @@ Do not invent a second state system. The filename state slot is the truth source
    - fact-finding or feasibility -> `rs`
    - scoped and executable -> `tk`
    - review exchange -> `rp`
-3. Preserve id-first naming and keep the filename slots stable except for state.
-4. When a task moves state, rename the existing `tk` file; do not create a parallel file.
-5. When review happens, create new `rp` files; do not encode reply chains as `re.` or `re.re.`.
-6. `rp` records are append-style evidence. Once created, treat them as frozen and prefer `dne`.
-7. In `tk.links`, prefer stable `rpNNNN` / `rpNNNNN` anchors over stateful review filenames.
-8. Before moving a code task to `rvw`, confirm it has non-empty `accept`, `code_version`, `verify`, and at least one linked `rp`.
-9. `refs/project-memory-aaak.md` is historical memory, not task truth. Memory-gated tasks must anchor there as `锚: tkNNNN` / `锚：tkNNNN` or `锚: tkNNNNN` / `锚：tkNNNNN`.
-10. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
+3. Default to one agent pushing the mainline end-to-end. Do not split work into extra rounds unless the next step is truly blocked by review, user decision, risk confirmation, missing evidence, or a real role handoff.
+4. Default to one active task line in one dedicated worktree.
+5. `doi` claims task ownership, and implementation should proceed in a dedicated worktree for that task.
+6. The shared root checkout is for reading, orchestration, and global checks. It is not the default implementation site.
+7. The current task's `tk` and directly related `rp` records should be updated from that task's worktree instead of a separate shared checkout.
+8. A dirty worktree is allowed when all changes belong to the current task line.
+9. If unrelated modified or untracked files appear in the current worktree, treat it as contamination and stop stacking work there.
+10. Switching tasks means switching worktrees, not continuing in the current dirty checkout.
+11. Review should use a separate review worktree instead of reusing the implementation worktree.
+12. Reuse the same task worktree while the same task is still active. When the task closes into `dne` / `cand` / `arvd` and all related changes are landed, remove that worktree. `bkd` may keep the worktree frozen, but do not mix another task into it.
+13. Preserve id-first naming and keep the filename slots stable except for state.
+14. When a task moves state, rename the existing `tk` file; do not create a parallel file.
+15. When review happens, create new `rp` files; do not encode reply chains as `re.` or `re.re.`.
+16. Reviewers may use an isolated `git worktree` for audit or verification to avoid colliding with active edits. A worktree is execution isolation only; task truth still lives in `tk` / `rp`.
+17. If review runs in a separate worktree, dependencies and generated state must follow that worktree's own lockfiles and sources rather than a sibling checkout.
+18. `rp` records are append-style evidence. Once created, treat them as frozen and prefer `dne`.
+19. In `tk.links`, prefer stable `rpNNNN` / `rpNNNNN` anchors over stateful review filenames.
+20. Before moving a code task to `rvw`, confirm it has non-empty `accept`, `code_version`, `verify`, and at least one linked `rp`.
+21. `refs/project-memory-aaak.md` is historical memory, not task truth. Memory-gated tasks must anchor there as `锚: tkNNNN` / `锚：tkNNNN` or `锚: tkNNNNN` / `锚：tkNNNNN`.
+22. Keep any helper automation thin. Scripts may validate and rename files, but must not become a second control plane.
 
 ## Bundled Script
 
 If the user asks for workflow automation, use `scripts/task.sh` first.
+Resolve bundled helper paths relative to this `SKILL.md` file's directory. Do not search for `task.sh` under the current project, and do not assume `./scripts/task.sh` exists there.
 
 Current commands:
 
@@ -98,3 +115,9 @@ Typical cases:
 - If a new review artifact is needed, make it task-first and minimal.
 - If a request can be answered by renaming an existing file, do that instead of adding a layer.
 - If the user asks for automation, start with a thin shell entrypoint, not a platform.
+- For worktree status questions, answer with a three-state verdict first: `clean`, `single-task dirty, can continue`, or `contaminated, must split`.
+- When a phase or round is finished, make the response's last line exactly one next-step marker:
+  `[本轮完成，请求下一阶段：动作(文档落盘/实现/审阅/修复/通过/复审/提交/推送/需用户决策)-目标(当前任务/单号/关键字)]`
+  or
+  `[本轮已完成(当前任务/单号/关键字)，阶段结束]`
+- Treat that marker as a mainline pointer, not a stop signal. If the next action is still owned by the current agent and has no external blocker, continue directly instead of waiting for a new round.

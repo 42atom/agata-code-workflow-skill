@@ -27,6 +27,16 @@ write_file() {
   cat >"$path"
 }
 
+iso_timestamp_hours_ago() {
+  python3 - "$1" <<'PY'
+from datetime import datetime, timedelta, timezone
+import sys
+
+hours = int(sys.argv[1])
+print((datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat(timespec="seconds"))
+PY
+}
+
 ######## doc-sample should generate dense static viewer
 
 out_dir="$(mktemp -d)"
@@ -117,10 +127,13 @@ links: []
 ---
 EOF
 
-write_file "$project_root/coauthors.csv" <<'EOF'
+fresh_updated_at="$(iso_timestamp_hours_ago 1)"
+stale_updated_at="$(iso_timestamp_hours_ago 49)"
+
+write_file "$project_root/coauthors.csv" <<EOF
 handle,owner,engine,role,status,updated_at,note
-dense.viewer,viewer,codex,worker,online,2026-04-11T10:00:00+08:00,active
-stale.viewer,viewer,codex,worker,online,2026-04-09T10:00:00+08:00,stale
+dense.viewer,viewer,codex,worker,online,${fresh_updated_at},active
+stale.viewer,viewer,codex,worker,online,${stale_updated_at},stale
 EOF
 
 out_dir="$(mktemp -d)"
