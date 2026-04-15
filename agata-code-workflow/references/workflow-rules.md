@@ -171,16 +171,34 @@ review 命名规则：
 工作树语义规则：
 
 - 一个活跃 task 默认对应一个专属 worktree
-- `doi` 后默认在该 task 的专属 worktree 中推进实现
-- 主 checkout 只做阅读、总控、状态查看、`task.sh check`，不作为默认实现现场
-- 当前 task 的 `tk` 与直接相关 `rp` 默认在该 task 的 worktree 中更新，不在另一份共享 checkout 中单独推进
+- 主 checkout 是共享控制面；`issues/`、`docs/reviews/`、`refs/project-memory-aaak.md`、`coauthors.csv` 的真相改动都在这里发生
+- linked worktree 里的这些 truth path 只是该分支镜像，不是权威真相视图
+- linked task worktree 若需要写验证记录、review 草稿或实现笔记，先写在非真相路径；不得直接改上述真相路径里的正式文件
+- `tdo -> doi`、`doi -> rvw|bkd|cand|dne`、`rp` 新建/回合推进、memory 锚点、派单更新都属于控制面动作，必须先在主 checkout 落盘
+- `doi` 落盘后，才在该 task 的专属 worktree 中推进实现
+- task worktree 只做代码、测试、生成物和临时草稿，不偷偷改 workflow 状态槽，不把自己当第二控制面
+- `task.sh ls` / `find` / `show` / `new` / `move` / `archive` / `prune` 默认穿透到共享控制面，不以当前 linked worktree 里的镜像 truth path 为准
+- `task.sh check` 例外：它就是要检查当前 worktree 有没有污染
+- `task.sh orphan-scan` 例外：它既看当前 worktree 的 truth 漂移，也看共享 refs 的差异
 - 单任务 worktree 在执行中可以是脏的，这是正常态
 - 同一 worktree 出现多个 task 的实现改动，或出现当前 task 之外的无关修改 / 未跟踪文件，视为污染
 - 切任务 = 切 worktree，不继续复用当前脏树
-- `rvw` / 复审默认在独立 review worktree 中完成
+- `rvw` / 复审可在独立 review worktree 中做验证，但 `tk` / `rp` 结论仍回主 checkout 落盘
 - 同一 task 续做时复用原 worktree
 - 任务进入 `dne` / `cand` / `arvd` 且已收口后，应移除对应 worktree；`bkd` 可保留 worktree 但冻结，不得混入别的 task
+- worktree 收尾是控制面对执行面的最后一次对账，不是顺手删目录
+- 优先用 `task.sh prune <task-id> <base-ref>` 收尾；它只做校验和回收，不代替控制面自动改状态
+- `prune` 只接受 `dne` / `cand` / `arvd`；`doi` 必须先释放，`bkd` 默认保留冻结现场
+- `prune` 前必须满足：主 checkout 的 `task.sh check` 通过、`task.sh orphan-scan <base-ref> <task-id>` 无漂移、目标 linked worktree 干净、且相对 `base-ref` 已无执行差异
+- `prune` 成功时同时回收 linked worktree 和对应本地 branch；默认不碰 remote branch
 - worktree 只是执行空间，不是任务真相源
+
+共享真相可达性规则：
+
+- `pl` 与任何 `tdo` 态文档属于共享待排期真相，不允许只存在于临时 task worktree / snapshot branch
+- 若某个 task worktree 中出现了只在本地可见的 `doi` / `rvw` / `rp` / memory 改动，视为控制面漂移；必须先收回主 checkout，再继续执行
+- 清理 worktree / 删除快照分支前，必须先跑 `task.sh orphan-scan <base-ref>`；只要它报出 `issues/`、`docs/reviews/`、`refs/project-memory-aaak.md` 的漂移，就不能直接清理
+- 若项目记忆、review 或 git 历史提到某个 `tk` / `pl` / `rs` / `rf` / `rp`，但当前真相源找不到，先跑 `task.sh orphan-scan <base-ref> <id>`，再用 `git log --all` / `git grep` 追溯；禁止直接假定它不存在
 
 工作树状态判断：
 
@@ -253,6 +271,25 @@ action：
 - 有 task 就必须带 `[tkNNNN]` 或 `[tkNNNNN]`
 - `board` 必须和任务文件第三槽一致
 - 需要验收时在 commit body 追加 `Reviewed-by`
+
+## 9.1 发号与认领保活
+
+规则：
+
+- 新建 `tk` / `pl` / `rs` / `rf` / `rp` 时，优先走 `task.sh new`，由共享控制面统一分配下一个可用 id
+- 不手工在并发 shell 里做 `max(id)+1` 发号
+- `task.sh move <id> doi` 会写入 `claimed_at`
+- `task.sh check` 对缺失 `claimed_at` 或长时间未推进的 `doi` 发警告，不自动回滚、不新增旁路锁文件
+
+## 9.2 收尾回收
+
+规则：
+
+- `task.sh prune <task-id> <base-ref>` 是薄终结器，不是状态机；它不替你自动推进 `tk`
+- 若任务仍在 `doi`，`prune` 必须失败，防止删除活跃认领
+- 若任务在 `bkd`，`prune` 默认失败，防止误删冻结现场
+- 若任务在 `dne` / `cand` / `arvd`，`prune` 仍要确认目标 linked worktree 已无未提交修改，且相对 `base-ref` 不再携带执行面独有差异
+- `prune` 只处理单一明确绑定的 linked worktree；找不到或找到多个都应失败，不替操作者猜
 
 ## 10. 回合收口输出
 

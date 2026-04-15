@@ -61,13 +61,24 @@ Common commands:
 ./agata-code-workflow/scripts/task.sh ls [state]
 ./agata-code-workflow/scripts/task.sh find rp10061
 ./agata-code-workflow/scripts/task.sh show 10061
+./agata-code-workflow/scripts/task.sh new tk runtime add-claim-gate p1
 ./agata-code-workflow/scripts/task.sh move 10061 doi
 ./agata-code-workflow/scripts/task.sh archive 10061
+./agata-code-workflow/scripts/task.sh prune 10061 origin/main
 ./agata-code-workflow/scripts/task.sh check
+./agata-code-workflow/scripts/task.sh orphan-scan origin/main
 ./agata-code-workflow/scripts/progress_view.py --project-root . --no-open
 ```
 
 No shadow database. No second state system.
+In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are branch mirrors, not the authoritative truth view.
+Workflow helpers such as `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` automatically resolve truth through the shared control plane, even when you call them from a linked task worktree.
+`task.sh check` stays local on purpose so it can catch truth pollution in the current worktree. `task.sh orphan-scan` keeps the current-worktree lens while also comparing shared refs.
+If a task worktree needs notes or drafts, keep them outside `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` until the authoritative update is ready to land on the shared checkout.
+
+Use `task.sh prune <task-id> <base-ref>` when a dedicated task worktree is ready to die.
+It re-runs `check`, re-runs `orphan-scan`, refuses `doi` / `bkd`, and only removes one linked worktree whose execution diff is already drained against the chosen base ref.
+If you only want inspection or recovery before cleanup, run `task.sh orphan-scan <base-ref>` directly.
 
 ## Progress View
 

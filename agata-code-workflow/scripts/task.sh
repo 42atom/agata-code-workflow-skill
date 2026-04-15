@@ -7,7 +7,10 @@ set -euo pipefail
 VALID_STATES="tdo doi rvw pss dne bkd cand arvd"
 VALID_MEMORY_MODES="none required done"
 STALE_COAUTHOR_SECONDS=86400
+STALE_DOI_SECONDS=259200
 ID_DIGITS_RE='[0-9]{4,5}'
+TRUTH_SCAN_PATHS=("issues" "docs/reviews" "refs/project-memory-aaak.md" "coauthors.csv")
+VALID_KINDS="tk pl rs rf rp"
 
 die() {
   echo "error: $*" >&2
@@ -38,6 +41,16 @@ is_valid_memory_mode() {
   return 1
 }
 
+is_valid_kind() {
+  local needle="$1"
+  for kind in $VALID_KINDS; do
+    if [[ "$kind" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 find_project_root() {
   local dir="${PWD}"
   while [[ "$dir" != "/" ]]; do
@@ -48,6 +61,39 @@ find_project_root() {
     dir="$(dirname "$dir")"
   done
   return 1
+}
+
+find_control_plane_root() {
+  local root="$1"
+  local control_root common_git_dir
+
+  is_git_repo "$root" || {
+    printf '%s\n' "$root"
+    return 0
+  }
+
+  control_root="$(git -C "$root" worktree list --porcelain | awk '
+    /^worktree / {
+      sub(/^worktree /, "", $0)
+      print
+      exit
+    }
+  ')"
+
+  if [[ -d "$control_root/issues" ]]; then
+    printf '%s\n' "$control_root"
+    return 0
+  fi
+
+  common_git_dir="$(resolve_repo_dir "$root" "$(git -C "$root" rev-parse --git-common-dir)")"
+  control_root="$(dirname "$common_git_dir")"
+
+  if [[ -d "$control_root/issues" ]]; then
+    printf '%s\n' "$control_root"
+    return 0
+  fi
+
+  printf '%s\n' "$root"
 }
 
 normalize_task_id() {
@@ -281,13 +327,397 @@ assert_memory_gate_for_close() {
 print_usage() {
   cat <<'EOF'
 usage:
+  task.sh new <kind> <board> <slug> [prio]
   task.sh ls [state]
   task.sh find <id>
   task.sh show <task-id>
   task.sh move <task-id> <state>
   task.sh archive <task-id>
+  task.sh prune <task-id> <base-ref>
   task.sh check
+  task.sh orphan-scan <base-ref> [filter]
 EOF
+}
+
+assert_git_repo() {
+  local root="$1"
+  local cmd_name="$2"
+
+  git -C "$root" rev-parse --show-toplevel >/dev/null 2>&1 || die "${cmd_name} requires a git repository"
+}
+
+is_git_repo() {
+  local root="$1"
+
+  git -C "$root" rev-parse --show-toplevel >/dev/null 2>&1
+}
+
+resolve_repo_dir() {
+  local root="$1"
+  local path="$2"
+
+  if [[ "$path" != /* ]]; then
+    path="${root}/${path}"
+  fi
+
+  (
+    cd "$path"
+    pwd -P
+  )
+}
+
+is_control_plane_checkout() {
+  local root="$1"
+  local git_dir common_git_dir
+
+  is_git_repo "$root" || return 0
+
+  git_dir="$(resolve_repo_dir "$root" "$(git -C "$root" rev-parse --git-dir)")"
+  common_git_dir="$(resolve_repo_dir "$root" "$(git -C "$root" rev-parse --git-common-dir)")"
+  [[ "$git_dir" == "$common_git_dir" ]]
+}
+
+assert_control_plane_checkout() {
+  local root="$1"
+  local cmd_name="$2"
+  local git_dir common_git_dir control_root
+
+  is_git_repo "$root" || return 0
+
+  git_dir="$(resolve_repo_dir "$root" "$(git -C "$root" rev-parse --git-dir)")"
+  common_git_dir="$(resolve_repo_dir "$root" "$(git -C "$root" rev-parse --git-common-dir)")"
+  control_root="$(dirname "$common_git_dir")"
+
+  if [[ "$git_dir" != "$common_git_dir" ]]; then
+    die "${cmd_name} must run from the shared root checkout control plane: ${control_root}"
+  fi
+}
+
+assert_no_truth_edits_in_linked_worktree() {
+  local root="$1"
+  local cmd_name="$2"
+  local truth_edits
+
+  is_git_repo "$root" || return 0
+  is_control_plane_checkout "$root" && return 0
+
+  truth_edits="$(git -C "$root" status --porcelain --untracked-files=all -- "${TRUTH_SCAN_PATHS[@]}" || true)"
+  if [[ -n "$truth_edits" ]]; then
+    echo "$truth_edits" >&2
+    die "${cmd_name} found truth-source edits in a linked worktree; move them to the shared root checkout control plane"
+  fi
+}
+
+assert_base_ref() {
+  local root="$1"
+  local base_ref="$2"
+
+  git -C "$root" rev-parse --verify --quiet "${base_ref}^{commit}" >/dev/null 2>&1 \
+    || die "unknown base ref: ${base_ref}"
+}
+
+emit_orphan_line() {
+  local prefix="$1"
+  local line="$2"
+  local filter="${3:-}"
+
+  [[ -n "$line" ]] || return 0
+  line="${line# }"
+  if [[ -n "$filter" && "$line" != *"$filter"* ]]; then
+    return 0
+  fi
+  printf '%s %s\n' "$prefix" "$line"
+}
+
+scan_worktree_truth() {
+  local root="$1"
+  local filter="${2:-}"
+  local line
+
+  while IFS= read -r line; do
+    emit_orphan_line "worktree" "$line" "$filter"
+  done < <(git -C "$root" status --porcelain --untracked-files=all -- "${TRUTH_SCAN_PATHS[@]}" || true)
+}
+
+scan_ref_truth() {
+  local root="$1"
+  local base_ref="$2"
+  local ref_label="$3"
+  local ref_target="$4"
+  local filter="${5:-}"
+  local line
+
+  while IFS= read -r line; do
+    emit_orphan_line "$ref_label" "$line" "$filter"
+  done < <(
+    git -C "$root" diff --name-status --find-renames --diff-filter=ACMR "${base_ref}...${ref_target}" -- "${TRUTH_SCAN_PATHS[@]}" || true
+  )
+}
+
+cmd_orphan_scan() {
+  local root="$1"
+  local base_ref="$2"
+  local filter="${3:-}"
+  local control_root current_branch ref
+  local findings=()
+
+  control_root="$(find_control_plane_root "$root")"
+
+  assert_git_repo "$control_root" "orphan-scan"
+  assert_base_ref "$control_root" "$base_ref"
+
+  while IFS= read -r ref; do
+    findings+=("$ref")
+  done < <(scan_worktree_truth "$root" "$filter")
+
+  while IFS= read -r ref; do
+    findings+=("$ref")
+  done < <(scan_ref_truth "$root" "$base_ref" "head" "HEAD" "$filter")
+
+  current_branch="$(git -C "$root" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  while IFS= read -r ref; do
+    [[ -n "$ref" ]] || continue
+    [[ "$ref" == "$current_branch" ]] && continue
+    [[ "$ref" == "$base_ref" ]] && continue
+    while IFS= read -r line; do
+      findings+=("$line")
+    done < <(scan_ref_truth "$control_root" "$base_ref" "branch:${ref}" "$ref" "$filter")
+  done < <(git -C "$control_root" for-each-ref --format='%(refname:short)' refs/heads | sort)
+
+  if [[ "${#findings[@]}" -eq 0 ]]; then
+    echo "ok"
+    return 0
+  fi
+
+  printf '%s\n' "${findings[@]}"
+  return 1
+}
+
+text_matches_task_id() {
+  local text="$1"
+  local task_id="$2"
+
+  [[ "$text" =~ (^|[^[:alnum:]])${task_id}([^[:alnum:]]|$) ]]
+}
+
+list_matching_linked_worktrees() {
+  local root="$1"
+  local task_id="$2"
+  local control_root current_path current_branch current_detached
+
+  control_root="$(resolve_repo_dir "$root" "$root")"
+  current_path=""
+  current_branch=""
+  current_detached=0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ -z "$line" ]]; then
+      if [[ -n "$current_path" ]]; then
+        current_path="$(resolve_repo_dir "$root" "$current_path")"
+        if [[ "$current_path" != "$control_root" ]]; then
+          if text_matches_task_id "$current_path" "$task_id" || text_matches_task_id "$current_branch" "$task_id"; then
+            if (( current_detached )); then
+              printf '%s\t%s\n' "$current_path" "__DETACHED__"
+            else
+              printf '%s\t%s\n' "$current_path" "$current_branch"
+            fi
+          fi
+        fi
+      fi
+      current_path=""
+      current_branch=""
+      current_detached=0
+      continue
+    fi
+
+    case "$line" in
+      worktree\ *)
+        current_path="${line#worktree }"
+        ;;
+      branch\ refs/heads/*)
+        current_branch="${line#branch refs/heads/}"
+        current_detached=0
+        ;;
+      detached)
+        current_branch=""
+        current_detached=1
+        ;;
+    esac
+  done < <(git -C "$root" worktree list --porcelain; printf '\n')
+}
+
+resolve_task_worktree() {
+  local root="$1"
+  local task_id="$2"
+  local matches=()
+
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    matches+=("$line")
+  done < <(list_matching_linked_worktrees "$root" "$task_id")
+
+  if [[ "${#matches[@]}" -eq 0 ]]; then
+    die "no linked worktree found for ${task_id}; prune only cleans an active dedicated worktree"
+  fi
+
+  if [[ "${#matches[@]}" -gt 1 ]]; then
+    printf '%s\n' "${matches[@]}" >&2
+    die "multiple linked worktrees match ${task_id}; prune needs a single unambiguous target"
+  fi
+
+  printf '%s\n' "${matches[0]}"
+}
+
+next_doc_digits() {
+  local root="$1"
+
+  python3 - "$root" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root = Path(sys.argv[1])
+pattern = re.compile(r"^(?:tk|pl|rs|rf|rp)(\d{4,5})\.")
+max_num = 0
+width = 4
+
+for base in (root / "issues", root / "docs" / "reviews"):
+    if not base.exists():
+        continue
+    for path in sorted(base.rglob("*.md")):
+        match = pattern.match(path.name)
+        if not match:
+            continue
+        digits = match.group(1)
+        max_num = max(max_num, int(digits))
+        width = max(width, len(digits))
+
+next_num = max_num + 1
+width = max(width, len(str(next_num)), 4)
+print(str(next_num).zfill(width))
+PY
+}
+
+issue_doc_path() {
+  local root="$1"
+  local kind="$2"
+  local digits="$3"
+  local board="$4"
+  local slug="$5"
+  local prio="${6:-}"
+  local state
+  local suffix=""
+
+  case "$kind" in
+    rp)
+      state="dne"
+      ;;
+    *)
+      state="tdo"
+      ;;
+  esac
+
+  if [[ -n "$prio" ]]; then
+    suffix=".${prio}"
+  fi
+
+  if [[ "$kind" == "rp" ]]; then
+    printf '%s\n' "$root/docs/reviews/${kind}${digits}.${state}.${board}.${slug}${suffix}.md"
+    return 0
+  fi
+
+  printf '%s\n' "$root/issues/${kind}${digits}.${state}.${board}.${slug}${suffix}.md"
+}
+
+write_new_issue_doc() {
+  local file="$1"
+  local kind="$2"
+
+  mkdir -p "$(dirname "$file")"
+
+  case "$kind" in
+    rp)
+      cat >"$file" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: TODO
+scope: TODO
+risk: low
+links: []
+---
+
+# 结论
+
+TODO
+
+# 发现
+
+1. TODO
+
+# 验证
+
+1. TODO
+EOF
+      ;;
+    *)
+      cat >"$file" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: TODO
+scope: TODO
+risk: low
+accept: TODO
+memory: none
+links: []
+---
+
+# 任务
+
+TODO
+
+# 范围
+
+1. TODO
+
+# 非范围
+
+1. TODO
+EOF
+      ;;
+  esac
+}
+
+cmd_new() {
+  local root="$1"
+  local kind="$2"
+  local board="$3"
+  local slug="$4"
+  local prio="${5:-}"
+  local digits file
+
+  assert_control_plane_checkout "$root" "new"
+  is_valid_kind "$kind" || die "invalid kind: ${kind}"
+  [[ "$board" =~ ^[a-z0-9-]+$ ]] || die "board must match [a-z0-9-]+"
+  [[ "$slug" =~ ^[a-z0-9-]+$ ]] || die "slug must match [a-z0-9-]+"
+
+  if [[ -n "$prio" ]]; then
+    [[ "$prio" =~ ^p[0-9]+$ ]] || die "prio must look like p0 / p1 / p2"
+  fi
+
+  if [[ "$kind" == "rp" && -n "$prio" ]]; then
+    die "rp does not accept prio"
+  fi
+
+  digits="$(next_doc_digits "$root")"
+  file="$(issue_doc_path "$root" "$kind" "$digits" "$board" "$slug" "$prio")"
+  [[ ! -e "$file" ]] || die "document already exists: $file"
+
+  write_new_issue_doc "$file" "$kind"
+  echo "$file"
 }
 
 normalize_doc_id() {
@@ -324,6 +754,29 @@ find_doc_file() {
   printf '%s\n' "${matches[@]}"
 }
 
+find_task_file_anywhere() {
+  local root="$1"
+  local task_id="$2"
+  local matches=()
+  local path
+
+  while IFS= read -r path; do
+    [[ "$path" == "$root/issues/"* ]] || continue
+    matches+=("$path")
+  done < <(find_doc_file "$root" "$task_id")
+
+  if [[ "${#matches[@]}" -eq 0 ]]; then
+    die "task file not found for ${task_id}"
+  fi
+
+  if [[ "${#matches[@]}" -gt 1 ]]; then
+    printf '%s\n' "${matches[@]}" >&2
+    die "multiple task files found for ${task_id}"
+  fi
+
+  printf '%s\n' "${matches[0]}"
+}
+
 cmd_ls() {
   local root="$1"
   local wanted_state="${2:-}"
@@ -351,10 +804,57 @@ cmd_find() {
   find_doc_file "$root" "$doc_id"
 }
 
+upsert_frontmatter_scalar() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  local temp_file
+
+  temp_file="$(mktemp)"
+  python3 - "$file" "$temp_file" "$key" "$value" <<'PY'
+from pathlib import Path
+import sys
+
+src = Path(sys.argv[1])
+dst = Path(sys.argv[2])
+key = sys.argv[3]
+value = sys.argv[4]
+
+text = src.read_text(encoding="utf-8")
+lines = text.splitlines(keepends=True)
+
+if not lines or lines[0].strip() != "---":
+    raise SystemExit(f"error: missing frontmatter in {src}")
+
+end = None
+for idx in range(1, len(lines)):
+    if lines[idx].strip() == "---":
+        end = idx
+        break
+
+if end is None:
+    raise SystemExit(f"error: unterminated frontmatter in {src}")
+
+frontmatter = lines[1:end]
+replacement = f"{key}: {value}\n"
+
+for idx, line in enumerate(frontmatter):
+    if line.startswith(f"{key}:"):
+        frontmatter[idx] = replacement
+        break
+else:
+    frontmatter.append(replacement)
+
+dst.write_text("".join([lines[0], *frontmatter, *lines[end:]]), encoding="utf-8")
+PY
+  mv "$temp_file" "$file"
+}
+
 cmd_move() {
   local root="$1"
   local task_id new_state file old_state new_file
 
+  assert_control_plane_checkout "$root" "move"
   task_id="$(normalize_task_id "$2")"
   new_state="$3"
   is_valid_state "$new_state" || die "invalid state: ${new_state}"
@@ -369,6 +869,9 @@ cmd_move() {
   assert_memory_gate_for_close "$root" "$file" "$new_state"
 
   new_file="$(rename_task_state "$file" "$new_state")"
+  if [[ "$new_state" == "doi" ]]; then
+    upsert_frontmatter_scalar "$new_file" "claimed_at" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  fi
   echo "$new_file"
 }
 
@@ -376,6 +879,7 @@ cmd_archive() {
   local root="$1"
   local task_id file state year archive_dir archived_file
 
+  assert_control_plane_checkout "$root" "archive"
   task_id="$(normalize_task_id "$2")"
   file="$(find_task_file "$root" "$task_id")"
   state="$(task_state_from_file "$file")"
@@ -393,6 +897,52 @@ cmd_archive() {
 
   mv "$file" "$archived_file"
   echo "$archived_file"
+}
+
+assert_prune_target_clean() {
+  local worktree_path="$1"
+  local task_id="$2"
+  local truth_status status
+
+  truth_status="$(git -C "$worktree_path" status --porcelain --untracked-files=all -- "${TRUTH_SCAN_PATHS[@]}" || true)"
+  if [[ -n "$truth_status" ]]; then
+    echo "$truth_status" >&2
+    die "linked worktree still has truth-source edits for ${task_id}: ${worktree_path}"
+  fi
+
+  status="$(git -C "$worktree_path" status --porcelain --untracked-files=all || true)"
+  if [[ -n "$status" ]]; then
+    echo "$status" >&2
+    die "linked worktree still has uncommitted changes for ${task_id}: ${worktree_path}"
+  fi
+}
+
+linked_worktree_has_execution_diff() {
+  local worktree_path="$1"
+  local base_ref="$2"
+  local -a exec_pathspecs=(
+    .
+    ":(exclude)issues"
+    ":(exclude)docs/reviews"
+    ":(exclude)refs/project-memory-aaak.md"
+    ":(exclude)coauthors.csv"
+  )
+
+  ! git -C "$worktree_path" diff --quiet "$base_ref" -- "${exec_pathspecs[@]}"
+}
+
+print_linked_worktree_execution_diff() {
+  local worktree_path="$1"
+  local base_ref="$2"
+  local -a exec_pathspecs=(
+    .
+    ":(exclude)issues"
+    ":(exclude)docs/reviews"
+    ":(exclude)refs/project-memory-aaak.md"
+    ":(exclude)coauthors.csv"
+  )
+
+  git -C "$worktree_path" diff --stat "$base_ref" -- "${exec_pathspecs[@]}" || true
 }
 
 check_duplicate_task_ids() {
@@ -692,9 +1242,90 @@ check_coauthors_staleness() {
   done < "$coauthors_file"
 }
 
+check_doi_staleness() {
+  local root="$1"
+  local now file task_id claimed_at claimed_epoch age
+
+  now="$(date +%s)"
+
+  while IFS= read -r file; do
+    task_id="$(task_id_from_file "$file")"
+    claimed_at="$(extract_frontmatter_scalar "$file" "claimed_at")"
+
+    if [[ -z "$claimed_at" ]]; then
+      warn "doi task missing claimed_at: ${task_id} (${file})"
+      continue
+    fi
+
+    if ! claimed_epoch="$(timestamp_to_epoch "$claimed_at")"; then
+      warn "invalid claimed_at on ${task_id}: ${claimed_at}"
+      continue
+    fi
+
+    age=$((now - claimed_epoch))
+    if (( age > STALE_DOI_SECONDS )); then
+      warn "stale doi task: ${task_id} claimed_at ${claimed_at}"
+    fi
+  done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.doi.*.md' | sort)
+}
+
+cmd_prune() {
+  local root="$1"
+  local task_id="$2"
+  local base_ref="$3"
+  local file state orphan_output match worktree_path branch_name
+
+  assert_git_repo "$root" "prune"
+  assert_control_plane_checkout "$root" "prune"
+  assert_base_ref "$root" "$base_ref"
+  task_id="$(normalize_task_id "$task_id")"
+  file="$(find_task_file_anywhere "$root" "$task_id")"
+  state="$(task_state_from_file "$file")"
+
+  case "$state" in
+    doi)
+      die "task in state doi cannot be pruned; release the claim first"
+      ;;
+    bkd)
+      die "task in state bkd cannot be pruned; keep the frozen worktree or move it to cand / tdo explicitly"
+      ;;
+    dne|cand|arvd)
+      ;;
+    *)
+      die "task in state ${state} cannot be pruned; close it into dne / cand / arvd first"
+      ;;
+  esac
+
+  cmd_check "$root" >/dev/null
+
+  if ! orphan_output="$(cmd_orphan_scan "$root" "$base_ref" "$task_id")"; then
+    printf '%s\n' "$orphan_output" >&2
+    die "prune found workflow truth drift for ${task_id}"
+  fi
+
+  match="$(resolve_task_worktree "$root" "$task_id")"
+  IFS=$'\t' read -r worktree_path branch_name <<<"$match"
+
+  if [[ "$branch_name" == "__DETACHED__" || -z "$branch_name" ]]; then
+    die "linked worktree for ${task_id} is detached; prune requires a named local branch"
+  fi
+
+  assert_prune_target_clean "$worktree_path" "$task_id"
+
+  if linked_worktree_has_execution_diff "$worktree_path" "$base_ref"; then
+    print_linked_worktree_execution_diff "$worktree_path" "$base_ref" >&2
+    die "linked worktree still carries execution diff vs ${base_ref} for ${task_id}"
+  fi
+
+  git -C "$root" worktree remove "$worktree_path"
+  git -C "$root" branch -D "$branch_name" >/dev/null
+  printf 'worktree: %s\nbranch: %s\n' "$worktree_path" "$branch_name"
+}
+
 cmd_check() {
   local root="$1"
 
+  assert_no_truth_edits_in_linked_worktree "$root" "check"
   check_duplicate_task_ids "$root"
   check_arvd_residue "$root"
   check_rvw_fields "$root"
@@ -703,11 +1334,12 @@ cmd_check() {
   check_legacy_reply_chains "$root"
   check_project_memory_links "$root"
   check_coauthors_staleness "$root"
+  check_doi_staleness "$root"
   echo "ok"
 }
 
 main() {
-  local root cmd
+  local current_root control_root cmd
 
   cmd="${1:-}"
 
@@ -715,35 +1347,57 @@ main() {
     ""|-h|--help|help)
       print_usage
       ;;
+    new)
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
+      [[ $# -ge 4 && $# -le 5 ]] || die "usage: task.sh new <kind> <board> <slug> [prio]"
+      cmd_new "$control_root" "$2" "$3" "$4" "${5:-}"
+      ;;
     ls)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       shift
-      cmd_ls "$root" "${1:-}"
+      cmd_ls "$control_root" "${1:-}"
       ;;
     find)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       [[ $# -eq 2 ]] || die "usage: task.sh find <id>"
-      cmd_find "$root" "$2"
+      cmd_find "$control_root" "$2"
       ;;
     show)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       [[ $# -eq 2 ]] || die "usage: task.sh show <task-id>"
-      cmd_show "$root" "$2"
+      cmd_show "$control_root" "$2"
       ;;
     move)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       [[ $# -eq 3 ]] || die "usage: task.sh move <task-id> <state>"
-      cmd_move "$root" "$2" "$3"
+      cmd_move "$control_root" "$2" "$3"
       ;;
     archive)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       [[ $# -eq 2 ]] || die "usage: task.sh archive <task-id>"
-      cmd_archive "$root" "$2"
+      cmd_archive "$control_root" "$2"
+      ;;
+    prune)
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
+      [[ $# -eq 3 ]] || die "usage: task.sh prune <task-id> <base-ref>"
+      cmd_prune "$control_root" "$2" "$3"
       ;;
     check)
-      root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
       [[ $# -eq 1 ]] || die "usage: task.sh check"
-      cmd_check "$root"
+      cmd_check "$current_root"
+      ;;
+    orphan-scan)
+      current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      [[ $# -ge 2 && $# -le 3 ]] || die "usage: task.sh orphan-scan <base-ref> [filter]"
+      cmd_orphan_scan "$current_root" "$2" "${3:-}"
       ;;
     *)
       die "unknown command: ${cmd}"
