@@ -178,7 +178,7 @@ review 命名规则：
 - `doi` 落盘后，才在该 task 的专属 worktree 中推进实现
 - task worktree 只做代码、测试、生成物和临时草稿，不偷偷改 workflow 状态槽，不把自己当第二控制面
 - `task.sh ls` / `find` / `show` / `new` / `move` / `archive` / `prune` 默认穿透到共享控制面，不以当前 linked worktree 里的镜像 truth path 为准
-- `task.sh check` 例外：它就是要检查当前 worktree 有没有污染
+- `task.sh check` 例外：只有“当前 worktree 有没有 truth 污染”这一刀留在本地；重复 id、review 约束、memory、staleness 等全局语义仍由共享控制面裁决
 - `task.sh orphan-scan` 例外：它既看当前 worktree 的 truth 漂移，也看共享 refs 的差异
 - 单任务 worktree 在执行中可以是脏的，这是正常态
 - 同一 worktree 出现多个 task 的实现改动，或出现当前 task 之外的无关修改 / 未跟踪文件，视为污染
@@ -190,6 +190,7 @@ review 命名规则：
 - 优先用 `task.sh prune <task-id> <base-ref>` 收尾；它只做校验和回收，不代替控制面自动改状态
 - `prune` 只接受 `dne` / `cand` / `arvd`；`doi` 必须先释放，`bkd` 默认保留冻结现场
 - `prune` 前必须满足：主 checkout 的 `task.sh check` 通过、`task.sh orphan-scan <base-ref> <task-id>` 无漂移、目标 linked worktree 干净、且相对 `base-ref` 已无执行差异
+- `prune` 不得从目标 worktree 自己内部执行；若当前 shell cwd 落在待删 worktree 内，必须先 `cd` 出去
 - `prune` 成功时同时回收 linked worktree 和对应本地 branch；默认不碰 remote branch
 - worktree 只是执行空间，不是任务真相源
 

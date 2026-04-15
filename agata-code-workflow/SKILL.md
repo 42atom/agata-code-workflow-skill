@@ -70,7 +70,8 @@ Do not invent a second state system. The filename state slot is the truth source
 28. Worktree teardown is a control-plane reconciliation step. Only prune after the task is already closed into `dne` / `cand` / `arvd`, workflow truth is clean, and the linked worktree no longer carries execution-only diff versus the chosen base ref.
 29. `doi` and `bkd` are not prune targets. `doi` must be released first; `bkd` keeps a frozen worktree unless the control plane explicitly changes direction.
 30. In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are only branch mirrors. They are not the authoritative truth view.
-31. Workflow helpers should read and write truth through the shared control plane by default. `check` stays local to catch current-worktree pollution, and `orphan-scan` still inspects the current worktree while comparing against shared refs.
+31. Workflow helpers should read and write truth through the shared control plane by default. `check` only keeps the current-worktree view for truth-pollution checks; every global workflow semantic check still reads from the control plane. `orphan-scan` still inspects the current worktree while comparing against shared refs.
+32. `prune` must not remove the worktree that contains the current shell cwd. If you are standing in the target worktree, `cd` out first.
 
 ## Bundled Script
 
@@ -92,9 +93,9 @@ Current commands:
 
 Use `task.sh` for legal rename flow, basic validation, archive moves, prune cleanup, and memory-gated close checks.
 `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` may be called from a linked worktree, but they must resolve truth against the shared control plane instead of the local mirror paths.
-Use `task.sh check` on the current worktree when you need to catch linked-worktree truth pollution or contamination.
+Use `task.sh check` on the current worktree when you need to catch linked-worktree truth pollution or contamination. Its local view is only for that pollution guard; the rest of the workflow semantics still resolve against the control plane.
 Use `task.sh orphan-scan` when you need current-worktree truth drift plus shared-ref comparison before cleanup or recovery.
-Use `task.sh prune <task-id> <base-ref>` when a dedicated task worktree is ready to die. It re-checks workflow truth, blocks `doi` / `bkd`, and only removes a single linked worktree whose execution diff is already drained against the chosen base ref.
+Use `task.sh prune <task-id> <base-ref>` when a dedicated task worktree is ready to die. It re-checks workflow truth, blocks `doi` / `bkd`, and only removes a single linked worktree whose execution diff is already drained against the chosen base ref. It also refuses to delete the worktree that contains the current shell cwd.
 Use `progress_view.py` when the user wants a dense read-only HTML view of current workflow status and history.
 Do not extend it into a scheduler, indexer, or ownership service unless the user explicitly asks.
 

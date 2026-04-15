@@ -945,6 +945,16 @@ print_linked_worktree_execution_diff() {
   git -C "$worktree_path" diff --stat "$base_ref" -- "${exec_pathspecs[@]}" || true
 }
 
+assert_prune_not_self_destructing() {
+  local worktree_path="$1"
+  local current_pwd
+
+  current_pwd="$(pwd -P)"
+  if [[ "$current_pwd" == "$worktree_path" || "$current_pwd" == "$worktree_path"/* ]]; then
+    die "prune cannot remove the linked worktree that contains the current shell cwd: ${worktree_path}; cd out and rerun"
+  fi
+}
+
 check_duplicate_task_ids() {
   local root="$1"
   local duplicates
@@ -1296,7 +1306,7 @@ cmd_prune() {
       ;;
   esac
 
-  cmd_check "$root" >/dev/null
+  cmd_check "$root" "$root" >/dev/null
 
   if ! orphan_output="$(cmd_orphan_scan "$root" "$base_ref" "$task_id")"; then
     printf '%s\n' "$orphan_output" >&2
@@ -1310,6 +1320,7 @@ cmd_prune() {
     die "linked worktree for ${task_id} is detached; prune requires a named local branch"
   fi
 
+  assert_prune_not_self_destructing "$worktree_path"
   assert_prune_target_clean "$worktree_path" "$task_id"
 
   if linked_worktree_has_execution_diff "$worktree_path" "$base_ref"; then
@@ -1323,18 +1334,19 @@ cmd_prune() {
 }
 
 cmd_check() {
-  local root="$1"
+  local current_root="$1"
+  local semantic_root="${2:-$1}"
 
-  assert_no_truth_edits_in_linked_worktree "$root" "check"
-  check_duplicate_task_ids "$root"
-  check_arvd_residue "$root"
-  check_rvw_fields "$root"
-  check_rp_names "$root"
-  check_tk_rp_links_exist "$root"
-  check_legacy_reply_chains "$root"
-  check_project_memory_links "$root"
-  check_coauthors_staleness "$root"
-  check_doi_staleness "$root"
+  assert_no_truth_edits_in_linked_worktree "$current_root" "check"
+  check_duplicate_task_ids "$semantic_root"
+  check_arvd_residue "$semantic_root"
+  check_rvw_fields "$semantic_root"
+  check_rp_names "$semantic_root"
+  check_tk_rp_links_exist "$semantic_root"
+  check_legacy_reply_chains "$semantic_root"
+  check_project_memory_links "$semantic_root"
+  check_coauthors_staleness "$semantic_root"
+  check_doi_staleness "$semantic_root"
   echo "ok"
 }
 
@@ -1391,8 +1403,9 @@ main() {
       ;;
     check)
       current_root="$(find_project_root)" || die "run from a project directory that contains issues/"
+      control_root="$(find_control_plane_root "$current_root")"
       [[ $# -eq 1 ]] || die "usage: task.sh check"
-      cmd_check "$current_root"
+      cmd_check "$current_root" "$control_root"
       ;;
     orphan-scan)
       current_root="$(find_project_root)" || die "run from a project directory that contains issues/"

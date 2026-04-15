@@ -26,6 +26,14 @@ assert_contains() {
   [[ "$haystack" == *"$needle"* ]] || fail "${message}: missing [${needle}] in [${haystack}]"
 }
 
+assert_not_contains() {
+  local haystack="$1"
+  local needle="$2"
+  local message="$3"
+
+  [[ "$haystack" != *"$needle"* ]] || fail "${message}: unexpected [${needle}] in [${haystack}]"
+}
+
 run_task() {
   local project_root="$1"
   shift
@@ -490,6 +498,85 @@ assert_contains "$task_stderr" "warning: doi task missing claimed_at: tk10014" "
 
 rm -rf "$project_root"
 
+######## linked worktree check should use control-plane semantics, not stale mirror truth
+
+project_root="$(make_git_project)"
+write_file "$project_root/issues/tk10024.doi.runtime.control-plane-check-stale.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: linked check must not judge stale doi from an old mirror
+scope: semantic checks should read the control plane
+risk: low
+accept: linked check ignores stale doi that only exists in the mirror
+memory: none
+claimed_at: 2000-01-01T00:00:00Z
+links: []
+---
+EOF
+(
+  cd "$project_root"
+  git add issues/tk10024.doi.runtime.control-plane-check-stale.p1.md
+  git commit -qm "plan(runtime): add linked check stale mirror case [tk10024]"
+)
+linked_root="$(make_linked_worktree "$project_root" "task/tk10024-check")"
+
+run_task "$project_root" move 10024 bkd
+assert_eq "$task_status" "0" "control plane should be able to move the task away from stale doi"
+
+run_task "$linked_root" check
+assert_eq "$task_status" "0" "linked worktree check should still pass after control plane releases the stale doi"
+assert_eq "$task_stdout" "ok" "linked worktree check should still finish with ok"
+assert_not_contains "$task_stderr" "stale doi task: tk10024" "linked worktree check should not warn on stale mirror doi"
+
+remove_linked_worktree "$project_root" "$linked_root"
+rm -rf "$project_root"
+
+######## linked worktree check should still see global duplicate ids from the control plane
+
+project_root="$(make_git_project)"
+write_file "$project_root/issues/tk10025.tdo.runtime.control-plane-check-duplicate-a.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: linked check must judge duplicate ids from the control plane
+scope: duplicate detection should not use stale mirror-only view
+risk: low
+accept: linked check fails on control-plane duplicate ids
+memory: none
+links: []
+---
+EOF
+(
+  cd "$project_root"
+  git add issues/tk10025.tdo.runtime.control-plane-check-duplicate-a.p1.md
+  git commit -qm "plan(runtime): add linked check duplicate base [tk10025]"
+)
+linked_root="$(make_linked_worktree "$project_root" "task/tk10025-check")"
+write_file "$project_root/issues/tk10025.doi.runtime.control-plane-check-duplicate-b.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: duplicate id exists only on the control plane branch history
+scope: make sure linked check still sees the collision
+risk: low
+accept: duplicate detection is global
+memory: none
+claimed_at: 2026-04-16T00:00:00Z
+links: []
+---
+EOF
+
+run_task "$linked_root" check
+assert_eq "$task_status" "1" "linked worktree check should fail on control-plane duplicate ids"
+assert_contains "$task_stderr" "duplicate or colliding task ids detected" "linked worktree check should report control-plane duplicate ids"
+
+remove_linked_worktree "$project_root" "$linked_root"
+rm -rf "$project_root"
+
 ######## move and show should route control-plane truth through a linked worktree
 
 project_root="$(make_git_project)"
@@ -582,7 +669,7 @@ EOF
 )
 linked_root="$(make_linked_worktree "$project_root" "task/tk10020")"
 
-run_task "$linked_root" prune 10020 main
+run_task "$project_root" prune 10020 main
 assert_eq "$task_status" "1" "prune should fail while task is still doi"
 assert_contains "$task_stderr" "task in state doi cannot be pruned" "prune should explain live claim guard"
 
@@ -615,6 +702,43 @@ linked_root="$(make_linked_worktree "$project_root" "task/tk10021")"
 run_task "$project_root" prune 10021 main
 assert_eq "$task_status" "1" "prune should fail while task is frozen in bkd"
 assert_contains "$task_stderr" "task in state bkd cannot be pruned" "prune should explain blocked-state guard"
+
+remove_linked_worktree "$project_root" "$linked_root"
+rm -rf "$project_root"
+
+######## prune should refuse to delete the worktree that contains the current shell cwd
+
+project_root="$(make_git_project)"
+write_file "$project_root/issues/tk10026.dne.runtime.prune-self-destruct-guard.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: prune should not remove the directory the current shell is standing in
+scope: block self-destructing prune calls from the target worktree
+risk: low
+accept: prune fails before removing the active cwd worktree
+memory: none
+links: []
+---
+EOF
+(
+  cd "$project_root"
+  git add issues/tk10026.dne.runtime.prune-self-destruct-guard.p1.md
+  git commit -qm "plan(runtime): add prune self-destruct guard [tk10026]"
+)
+linked_root="$(make_linked_worktree "$project_root" "task/tk10026")"
+
+run_task "$linked_root" prune 10026 main
+assert_eq "$task_status" "1" "prune should fail when called from inside the target worktree"
+assert_contains "$task_stderr" "prune cannot remove the linked worktree that contains the current shell cwd" "prune should explain the self-destruct guard"
+[[ -d "$linked_root" ]] || fail "self-destruct guard should keep the linked worktree in place"
+(
+  cd "$project_root"
+  if ! git rev-parse --verify --quiet refs/heads/task/tk10026 >/dev/null; then
+    fail "self-destruct guard should keep the local branch"
+  fi
+)
 
 remove_linked_worktree "$project_root" "$linked_root"
 rm -rf "$project_root"
@@ -654,7 +778,7 @@ EOF
   git merge --no-ff -qm "merge task/tk10022" task/tk10022
 )
 
-run_task "$linked_root" prune 10022 main
+run_task "$project_root" prune 10022 main
 assert_eq "$task_status" "0" "prune should succeed once code is landed and task is closed"
 assert_contains "$task_stdout" "branch: task/tk10022" "prune should report the cleaned local branch"
 [[ ! -d "$linked_root" ]] || fail "prune should remove the linked worktree directory"
@@ -698,7 +822,7 @@ EOF
   git commit -qm "feat(runtime): add unlanded prune sample [tk10023]"
 )
 
-run_task "$linked_root" prune 10023 main
+run_task "$project_root" prune 10023 main
 assert_eq "$task_status" "1" "prune should fail when execution diff is still unique to the task branch"
 assert_contains "$task_stderr" "linked worktree still carries execution diff vs main for tk10023" "prune should explain outstanding execution drift"
 [[ -d "$linked_root" ]] || fail "failed prune should keep the linked worktree in place"
