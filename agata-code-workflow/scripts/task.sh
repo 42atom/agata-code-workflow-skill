@@ -704,6 +704,10 @@ cmd_new() {
   [[ "$board" =~ ^[a-z0-9-]+$ ]] || die "board must match [a-z0-9-]+"
   [[ "$slug" =~ ^[a-z0-9-]+$ ]] || die "slug must match [a-z0-9-]+"
 
+  if is_valid_state "$board"; then
+    die "board must not be a workflow state; usage: task.sh new <kind> <board> <slug> [prio]"
+  fi
+
   if [[ -n "$prio" ]]; then
     [[ "$prio" =~ ^p[0-9]+$ ]] || die "prio must look like p0 / p1 / p2"
   fi

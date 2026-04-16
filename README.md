@@ -70,6 +70,9 @@ Common commands:
 ./agata-code-workflow/scripts/progress_view.py --project-root . --no-open
 ```
 
+For `task.sh new`, the contract is literal: `<kind> <board> <slug> [prio]`.
+`board` is the third filename slot, not the state slot. New `pl` / `rs` / `rf` / `tk` docs start as `tdo`, and new `rp` docs start as `dne`.
+
 No shadow database. No second state system.
 In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are branch mirrors, not the authoritative truth view.
 Workflow helpers such as `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` automatically resolve truth through the shared control plane, even when you call them from a linked task worktree.

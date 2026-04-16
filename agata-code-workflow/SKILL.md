@@ -66,12 +66,15 @@ Do not invent a second state system. The filename state slot is the truth source
 24. If memory, review, or git history mentions a `tk` / `pl` / `rs` / `rf` / `rp` id that the current truth source cannot find, first run `task.sh orphan-scan <base-ref> <id>` and then trace git history before concluding the file is gone.
 25. A linked task worktree must not directly edit files under `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, or `coauthors.csv`. Draft related notes elsewhere, then land the authoritative update from the shared control plane.
 26. Create new workflow ids through `task.sh new` on the shared control plane instead of scanning `max(id)+1` by hand in parallel shells.
-27. `task.sh move <id> doi` stamps `claimed_at`. `task.sh check` warns on missing or stale `doi` claims so zombie locks surface without adding a second lock system.
-28. Worktree teardown is a control-plane reconciliation step. Only prune after the task is already closed into `dne` / `cand` / `arvd`, workflow truth is clean, and the linked worktree no longer carries execution-only diff versus the chosen base ref.
-29. `doi` and `bkd` are not prune targets. `doi` must be released first; `bkd` keeps a frozen worktree unless the control plane explicitly changes direction.
-30. In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are only branch mirrors. They are not the authoritative truth view.
-31. Workflow helpers should read and write truth through the shared control plane by default. `check` only keeps the current-worktree view for truth-pollution checks; every global workflow semantic check still reads from the control plane. `orphan-scan` still inspects the current worktree while comparing against shared refs.
-32. `prune` must not remove the worktree that contains the current shell cwd. If you are standing in the target worktree, `cd` out first.
+27. `task.sh new` takes `<kind> <board> <slug> [prio]`. `board` is a module or scenario code, not a workflow state. New `pl` / `rs` / `rf` / `tk` docs start at `tdo`; new `rp` docs start at `dne`.
+28. Do not infer a legacy truth path such as `docs/plan/` from stray old files. Only deviate from `issues/` when the target project has explicit local workflow rules or current control-plane truth that says so.
+29. Do not write project memory just because you are creating a fresh `pl` / `rs` / `tk`. Memory is for stable milestones, key decisions, freeze points, or tasks that explicitly require `memory: required`.
+30. `task.sh move <id> doi` stamps `claimed_at`. `task.sh check` warns on missing or stale `doi` claims so zombie locks surface without adding a second lock system.
+31. Worktree teardown is a control-plane reconciliation step. Only prune after the task is already closed into `dne` / `cand` / `arvd`, workflow truth is clean, and the linked worktree no longer carries execution-only diff versus the chosen base ref.
+32. `doi` and `bkd` are not prune targets. `doi` must be released first; `bkd` keeps a frozen worktree unless the control plane explicitly changes direction.
+33. In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are only branch mirrors. They are not the authoritative truth view.
+34. Workflow helpers should read and write truth through the shared control plane by default. `check` only keeps the current-worktree view for truth-pollution checks; every global workflow semantic check still reads from the control plane. `orphan-scan` still inspects the current worktree while comparing against shared refs.
+35. `prune` must not remove the worktree that contains the current shell cwd. If you are standing in the target worktree, `cd` out first.
 
 ## Bundled Script
 
@@ -92,6 +95,7 @@ Current commands:
 - `progress_view.py [--project-root <path>] [--no-open]`
 
 Use `task.sh` for legal rename flow, basic validation, archive moves, prune cleanup, and memory-gated close checks.
+For `task.sh new`, remember: `board` is the third filename slot, not the state slot. The helper assigns the initial state itself: new `pl` / `rs` / `rf` / `tk` docs start as `tdo`, and new `rp` docs start as `dne`.
 `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` may be called from a linked worktree, but they must resolve truth against the shared control plane instead of the local mirror paths.
 Use `task.sh check` on the current worktree when you need to catch linked-worktree truth pollution or contamination. Its local view is only for that pollution guard; the rest of the workflow semantics still resolve against the control plane.
 Use `task.sh orphan-scan` when you need current-worktree truth drift plus shared-ref comparison before cleanup or recovery.

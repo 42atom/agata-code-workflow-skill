@@ -26,6 +26,7 @@
 - 不再使用 `docs/plan/issues/` 这类历史路径
 - `active-mainline.md` 只做导航，不承载状态
 - 状态变更只改 `tk` 文件名，不靠正文或索引页
+- 若目标项目要偏离这条真相路径，必须有项目级 `AGENTS.md` / `CLAUDE.md` 或当前控制面真相的明确证据；零散历史文件不足以推翻共享规则
 
 ## 3. 文档命名
 
@@ -58,6 +59,7 @@ state：
 - `id` 支持 4 位或 5 位数字；现有 4 位文件无需迁移
 - 同一项目内不允许裸数字碰撞；禁止 `tk0001` 与 `tk00001` 共存
 - `board` 用模块短词或场景码
+- `board` 不得使用 `tdo` / `doi` / `rvw` / `pss` / `dne` / `bkd` / `cand` / `arvd` 这类状态保留词
 - `slug` 只允许 `[a-z0-9-]`
 - owner / 时间 / 原因进 front matter，不进文件名
 
@@ -125,6 +127,7 @@ handle,owner,engine,role,status,updated_at,note
 - `none` = 不要求进入项目历史记忆
 - `required` = 关闭前必须写入 `refs/project-memory-aaak.md`
 - `done` = 已写入项目历史记忆，且记忆文件必须能回指该任务
+- 新建 `pl` / `rs` / `tk` 时，不因为“顺手一起落盘”就提前写 memory；只有形成稳定里程碑、关键决策，或任务明确要求 `memory: required` 时才写
 
 记忆锚点：
 
