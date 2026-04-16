@@ -75,6 +75,9 @@ In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaa
 Workflow helpers such as `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` automatically resolve truth through the shared control plane, even when you call them from a linked task worktree.
 `task.sh check` is split on purpose: truth-pollution checks stay local to the current worktree, while all workflow semantics and staleness checks read from the shared control plane. `task.sh orphan-scan` keeps the current-worktree lens while also comparing shared refs.
 If a task worktree needs notes or drafts, keep them outside `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` until the authoritative update is ready to land on the shared checkout.
+Before `rvw`, merge, or `prune`, re-check the worktree against the target `base-ref`; do not keep stacking changes on an obviously stale execution plane.
+Parallel task worktrees are blind by default: do not consume another task worktree's unlanded code, artifacts, local services, or database state through side channels.
+Stale `doi` claims trigger a takeover check, not automatic rollback; inspect the worktree, run `task.sh orphan-scan <base-ref> <task-id>`, then hand off or move state explicitly on the control plane.
 
 Use `task.sh prune <task-id> <base-ref>` when a dedicated task worktree is ready to die.
 It re-runs `check`, re-runs `orphan-scan`, refuses `doi` / `bkd`, and only removes one linked worktree whose execution diff is already drained against the chosen base ref.
