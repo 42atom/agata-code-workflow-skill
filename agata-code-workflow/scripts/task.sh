@@ -51,6 +51,18 @@ is_valid_kind() {
   return 1
 }
 
+is_generic_claimant_label() {
+  local raw="$1"
+
+  case "$raw" in
+    ""|user|codex|claude|assistant)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
 find_project_root() {
   local dir="${PWD}"
   while [[ "$dir" != "/" ]]; do
@@ -854,9 +866,52 @@ PY
   mv "$temp_file" "$file"
 }
 
+resolve_claimed_by() {
+  local file="$1"
+  local explicit assignee owner
+
+  explicit="${AGATA_CLAIMANT:-}"
+  if [[ -n "$explicit" ]]; then
+    printf '%s\n' "$explicit"
+    return 0
+  fi
+
+  assignee="$(extract_frontmatter_scalar "$file" "assignee")"
+  if [[ -n "$assignee" ]]; then
+    printf '%s\n' "$assignee"
+    return 0
+  fi
+
+  owner="$(extract_frontmatter_scalar "$file" "owner")"
+  if [[ -n "$owner" ]]; then
+    printf '%s\n' "$owner"
+    return 0
+  fi
+
+  printf '%s\n' "${USER:-unknown}"
+}
+
+resolve_claimed_thread_id() {
+  local explicit thread_id
+
+  explicit="${AGATA_CLAIM_THREAD_ID:-}"
+  if [[ -n "$explicit" ]]; then
+    printf '%s\n' "$explicit"
+    return 0
+  fi
+
+  thread_id="${CODEX_THREAD_ID:-${CLAUDE_THREAD_ID:-}}"
+  if [[ -n "$thread_id" ]]; then
+    printf '%s\n' "$thread_id"
+    return 0
+  fi
+
+  return 1
+}
+
 cmd_move() {
   local root="$1"
-  local task_id new_state file old_state new_file
+  local task_id new_state file old_state new_file claimed_by claimed_thread_id
 
   assert_control_plane_checkout "$root" "move"
   task_id="$(normalize_task_id "$2")"
@@ -875,6 +930,11 @@ cmd_move() {
   new_file="$(rename_task_state "$file" "$new_state")"
   if [[ "$new_state" == "doi" ]]; then
     upsert_frontmatter_scalar "$new_file" "claimed_at" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    claimed_by="$(resolve_claimed_by "$new_file")"
+    upsert_frontmatter_scalar "$new_file" "claimed_by" "$claimed_by"
+    if claimed_thread_id="$(resolve_claimed_thread_id)"; then
+      upsert_frontmatter_scalar "$new_file" "claimed_thread_id" "$claimed_thread_id"
+    fi
   fi
   echo "$new_file"
 }
@@ -1258,27 +1318,34 @@ check_coauthors_staleness() {
 
 check_doi_staleness() {
   local root="$1"
-  local now file task_id claimed_at claimed_epoch age
+  local now file task_id claimed_at claimed_epoch age claimed_by claimed_thread_id
 
   now="$(date +%s)"
 
   while IFS= read -r file; do
     task_id="$(task_id_from_file "$file")"
     claimed_at="$(extract_frontmatter_scalar "$file" "claimed_at")"
+    claimed_by="$(extract_frontmatter_scalar "$file" "claimed_by")"
+    claimed_thread_id="$(extract_frontmatter_scalar "$file" "claimed_thread_id")"
 
     if [[ -z "$claimed_at" ]]; then
       warn "doi task missing claimed_at: ${task_id} (${file})"
-      continue
-    fi
-
-    if ! claimed_epoch="$(timestamp_to_epoch "$claimed_at")"; then
+    elif ! claimed_epoch="$(timestamp_to_epoch "$claimed_at")"; then
       warn "invalid claimed_at on ${task_id}: ${claimed_at}"
+    else
+      age=$((now - claimed_epoch))
+      if (( age > STALE_DOI_SECONDS )); then
+        warn "stale doi task: ${task_id} claimed_at ${claimed_at}"
+      fi
+    fi
+
+    if [[ -z "$claimed_by" ]]; then
+      warn "doi task missing claimed_by: ${task_id} (${file})"
       continue
     fi
 
-    age=$((now - claimed_epoch))
-    if (( age > STALE_DOI_SECONDS )); then
-      warn "stale doi task: ${task_id} claimed_at ${claimed_at}"
+    if is_generic_claimant_label "$claimed_by" && [[ -z "$claimed_thread_id" ]]; then
+      warn "doi task generic claimant needs claimed_thread_id: ${task_id} -> ${claimed_by}"
     fi
   done < <(find "$root/issues" -maxdepth 1 -type f -name 'tk*.doi.*.md' | sort)
 }

@@ -182,6 +182,7 @@ review 命名规则：
 - task worktree 只做代码、测试、生成物和临时草稿，不偷偷改 workflow 状态槽，不把自己当第二控制面
 - `task.sh ls` / `find` / `show` / `new` / `move` / `archive` / `prune` 默认穿透到共享控制面，不以当前 linked worktree 里的镜像 truth path 为准
 - `task.sh check` 例外：只有“当前 worktree 有没有 truth 污染”这一刀留在本地；重复 id、review 约束、memory、staleness 等全局语义仍由共享控制面裁决
+- `task.sh check` 通过只说明工作流语义合法，不说明当前共享控制面上的所有脏改都属于你
 - `task.sh orphan-scan` 例外：它既看当前 worktree 的 truth 漂移，也看共享 refs 的差异
 - 单任务 worktree 在执行中可以是脏的，这是正常态
 - 进入 `rvw`、准备合并或 `prune` 前，必须相对目标 `base-ref` 检查真相漂移与执行差异；明显过期的 worktree 先对齐，再继续推进
@@ -203,6 +204,9 @@ review 命名规则：
 共享真相可达性规则：
 
 - `pl` 与任何 `tdo` 态文档属于共享待排期真相，不允许只存在于临时 task worktree / snapshot branch
+- 共享控制面上，`issues/`、`docs/reviews/`、`refs/project-memory-aaak.md`、`coauthors.csv` 的无关脏改，以及未跟踪 `tk` / `pl` / `rs` / `rf` / `rp` 文件，默认视为外来活动线，不叫“噪声”
+- 判断外来活动线时，先看 task id、state、`claimed_at`、`claimed_by`、`claimed_thread_id`、links、相邻 review / memory 锚点，以及 `coauthors.csv`；没有证据前，不得擅自当成废稿或顺手并入当前提交
+- 未经明确接管，不得删除、改名、暂存或提交外来活动线；当前提交只收自己的真相改动，别线单独报告
 - 若某个 task worktree 中出现了只在本地可见的 `doi` / `rvw` / `rp` / memory 改动，视为控制面漂移；必须先收回主 checkout，再继续执行
 - 清理 worktree / 删除快照分支前，必须先跑 `task.sh orphan-scan <base-ref>`；只要它报出 `issues/`、`docs/reviews/`、`refs/project-memory-aaak.md` 的漂移，就不能直接清理
 - 若项目记忆、review 或 git 历史提到某个 `tk` / `pl` / `rs` / `rf` / `rp`，但当前真相源找不到，先跑 `task.sh orphan-scan <base-ref> <id>`，再用 `git log --all` / `git grep` 追溯；禁止直接假定它不存在
@@ -285,8 +289,9 @@ action：
 
 - 新建 `tk` / `pl` / `rs` / `rf` / `rp` 时，优先走 `task.sh new`，由共享控制面统一分配下一个可用 id
 - 不手工在并发 shell 里做 `max(id)+1` 发号
-- `task.sh move <id> doi` 会写入 `claimed_at`
+- `task.sh move <id> doi` 会写入 `claimed_at`、`claimed_by`，以及当前 runtime 能提供时的 `claimed_thread_id`
 - `task.sh check` 对缺失 `claimed_at` 或长时间未推进的 `doi` 发警告，不自动回滚、不新增旁路锁文件
+- 当多个 agent 共享同一个引擎名（例如都叫 `codex`）时，`claimed_thread_id` 是主识别信号；`claimed_by` 只保留粗粒度身份
 - `doi` 超时只触发接管检查，不触发自动回滚；接手前必须检查现场、跑 `task.sh orphan-scan <base-ref> <task-id>`，并在控制面显式改状态或交接
 
 ## 9.2 收尾回收

@@ -78,9 +78,13 @@ In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaa
 Workflow helpers such as `task.sh ls`, `find`, `show`, `new`, `move`, `archive`, and `prune` automatically resolve truth through the shared control plane, even when you call them from a linked task worktree.
 `task.sh check` is split on purpose: truth-pollution checks stay local to the current worktree, while all workflow semantics and staleness checks read from the shared control plane. `task.sh orphan-scan` keeps the current-worktree lens while also comparing shared refs.
 If a task worktree needs notes or drafts, keep them outside `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` until the authoritative update is ready to land on the shared checkout.
+A successful `task.sh check` only says the workflow semantics are valid. It does not mean every dirty truth file on the shared control plane belongs to your current task line.
+On the shared control plane, unrelated truth-path edits and untracked workflow docs are foreign active lines by default, not "noise". Inspect their task id, state, `claimed_at`, `claimed_by`, `claimed_thread_id`, links, and nearby review or memory evidence before deciding whether another agent is landing truth.
+Unless you are explicitly taking over, do not delete, rename, stage, or absorb those foreign active lines into your own commit.
 Before `rvw`, merge, or `prune`, re-check the worktree against the target `base-ref`; do not keep stacking changes on an obviously stale execution plane.
 Parallel task worktrees are blind by default: do not consume another task worktree's unlanded code, artifacts, local services, or database state through side channels.
 Stale `doi` claims trigger a takeover check, not automatic rollback; inspect the worktree, run `task.sh orphan-scan <base-ref> <task-id>`, then hand off or move state explicitly on the control plane.
+When a task moves to `doi`, `task.sh move` stamps `claimed_at`, `claimed_by`, and, when the runtime exposes it, `claimed_thread_id`. For multiple Codex threads, `claimed_thread_id` is the useful disambiguator.
 
 Use `task.sh prune <task-id> <base-ref>` when a dedicated task worktree is ready to die.
 It re-runs `check`, re-runs `orphan-scan`, refuses `doi` / `bkd`, and only removes one linked worktree whose execution diff is already drained against the chosen base ref.

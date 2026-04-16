@@ -473,6 +473,8 @@ risk: low
 accept: stale doi shows a warning
 memory: none
 claimed_at: 2000-01-01T00:00:00Z
+claimed_by: codex
+claimed_thread_id: thread-stale
 links: []
 ---
 EOF
@@ -489,12 +491,29 @@ memory: none
 links: []
 ---
 EOF
+write_file "$project_root/issues/tk10015.doi.runtime.generic-claimant-without-thread.p1.md" <<'EOF'
+---
+owner: user
+assignee: codex
+reviewer: user
+why: generic engine claimants need a thread marker
+scope: warn when same-engine concurrency cannot be disambiguated
+risk: low
+accept: missing claimed_thread_id shows a warning
+memory: none
+claimed_at: 2026-04-16T00:00:00Z
+claimed_by: codex
+links: []
+---
+EOF
 
 run_task "$project_root" check
 assert_eq "$task_status" "0" "stale doi warnings should not fail check"
 assert_eq "$task_stdout" "ok" "stale doi warnings should still finish with ok"
 assert_contains "$task_stderr" "warning: stale doi task: tk10013" "check should warn on stale doi"
 assert_contains "$task_stderr" "warning: doi task missing claimed_at: tk10014" "check should warn on missing claim timestamp"
+assert_contains "$task_stderr" "warning: doi task missing claimed_by: tk10014" "check should warn on missing claim owner"
+assert_contains "$task_stderr" "warning: doi task generic claimant needs claimed_thread_id: tk10015 -> codex" "check should warn when generic claimants lack a thread id"
 
 rm -rf "$project_root"
 
@@ -600,10 +619,12 @@ EOF
 )
 linked_root="$(make_linked_worktree "$project_root" "task/tk10007")"
 
-run_task "$linked_root" move 10007 doi
+CODEX_THREAD_ID="thread-tk10007" run_task "$linked_root" move 10007 doi
 assert_eq "$task_status" "0" "move should route to the shared control plane from a linked worktree"
 assert_eq "$task_stdout" "$project_root/issues/tk10007.doi.runtime.control-plane-move.p1.md" "linked worktree move should rename the control-plane task"
 grep -q "^claimed_at: " "$task_stdout" || fail "move to doi should stamp claimed_at"
+grep -q "^claimed_by: codex$" "$task_stdout" || fail "move to doi should stamp claimed_by"
+grep -q "^claimed_thread_id: thread-tk10007$" "$task_stdout" || fail "move to doi should stamp claimed_thread_id from runtime env"
 [[ -f "$linked_root/issues/tk10007.tdo.runtime.control-plane-move.p1.md" ]] || fail "linked worktree mirror should stay on its own branch copy"
 
 run_task "$linked_root" show 10007
