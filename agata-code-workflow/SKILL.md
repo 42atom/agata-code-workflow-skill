@@ -166,6 +166,12 @@ Typical cases:
 - If the user asks for automation, start with a thin shell entrypoint, not a platform.
 - Do not place ordinary project docs under workflow-only slots such as `pl` / `rs` just to make them look tracked.
 - For worktree status questions, answer with a three-state verdict first: `clean`, `single-task dirty, can continue`, or `contaminated, must split`.
+- Close tasks with task-scoped evidence only. Do not generalize to the whole repo or all worktrees.
+- For cleanup, say only that the current task's bound worktree and local branch were reclaimed. Do not say things like "only the root repo remains" or "everything was cleaned".
+- Call unrelated shared-control-plane changes `foreign active lines`, not "noise" or generic dirty state.
+- If new scope appears after a task is already `dne`, say it needs a new `tk` instead of writing back into the closed task.
+- Before a close-out reply, you may add one thin `全场快速扫视`: control plane first, worktrees second, compressed conclusion only.
+- A `全场快速扫视` reports only foreign active lines plus the remaining foreign worktree count or coarse ownership, and says they were not taken over.
 - When a phase or round is finished, make the response's last line exactly one next-step marker:
   `[本轮完成，下一阶段：动作(文档落盘/实现/审阅/修复/复审/通过/提交/合并与清理/推送/任务完成/需用户决策...)-目标(当前任务/单号/关键字)]`
   or
