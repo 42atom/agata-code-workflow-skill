@@ -153,7 +153,7 @@ Typical cases:
 - Do not place ordinary project docs under workflow-only slots such as `pl` / `rs` just to make them look tracked.
 - For worktree status questions, answer with a three-state verdict first: `clean`, `single-task dirty, can continue`, or `contaminated, must split`.
 - When a phase or round is finished, make the response's last line exactly one next-step marker:
-  `[本轮完成，请求下一阶段：动作(文档落盘/实现/审阅/修复/通过/复审/提交/推送/合并与清理/需用户决策...)-目标(当前任务/单号/关键字)]`
+  `[本轮完成，下一阶段：动作(文档落盘/实现/审阅/修复/复审/通过/提交/合并与清理/推送/任务完成/需用户决策...)-目标(当前任务/单号/关键字)]`
   or
   `[本轮已完成(当前任务/单号/关键字)，阶段结束]`
 - Treat that marker as a mainline pointer, not a stop signal. If the next action is still owned by the current agent and has no external blocker, continue directly instead of waiting for a new round.
