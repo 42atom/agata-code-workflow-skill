@@ -183,6 +183,7 @@ review 命名规则：
 - `task.sh ls` / `find` / `show` / `new` / `move` / `archive` / `prune` 默认穿透到共享控制面，不以当前 linked worktree 里的镜像 truth path 为准
 - `task.sh check` 例外：只有“当前 worktree 有没有 truth 污染”这一刀留在本地；重复 id、review 约束、memory、staleness 等全局语义仍由共享控制面裁决
 - `task.sh check` 通过只说明工作流语义合法，不说明当前共享控制面上的所有脏改都属于你
+- 同一 task line 的控制面写操作必须串行；不得对同一 task 预发多个 `move`，每次状态落盘后都要重读真相与 gate，再决定下一跳
 - `task.sh orphan-scan` 例外：它既看当前 worktree 的 truth 漂移，也看共享 refs 的差异
 - 单任务 worktree 在执行中可以是脏的，这是正常态
 - 进入 `rvw`、准备合并或 `prune` 前，必须相对目标 `base-ref` 检查真相漂移与执行差异；明显过期的 worktree 先对齐，再继续推进
@@ -290,6 +291,7 @@ action：
 - 新建 `tk` / `pl` / `rs` / `rf` / `rp` 时，优先走 `task.sh new`，由共享控制面统一分配下一个可用 id
 - 不手工在并发 shell 里做 `max(id)+1` 发号
 - `task.sh move <id> doi` 会写入 `claimed_at`、`claimed_by`，以及当前 runtime 能提供时的 `claimed_thread_id`
+- `move` 是单步控制面动作，不是流水线；尤其 `rvw` / `dne` / `arvd` 这类带 gate 的状态，必须等上一步成功落盘并重读真相后再推进
 - `task.sh check` 对缺失 `claimed_at` 或长时间未推进的 `doi` 发警告，不自动回滚、不新增旁路锁文件
 - 当多个 agent 共享同一个引擎名（例如都叫 `codex`）时，`claimed_thread_id` 是主识别信号；`claimed_by` 只保留粗粒度身份
 - `doi` 超时只触发接管检查，不触发自动回滚；接手前必须检查现场、跑 `task.sh orphan-scan <base-ref> <task-id>`，并在控制面显式改状态或交接

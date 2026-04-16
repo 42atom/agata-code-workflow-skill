@@ -81,6 +81,7 @@ If a task worktree needs notes or drafts, keep them outside `issues/`, `docs/rev
 A successful `task.sh check` only says the workflow semantics are valid. It does not mean every dirty truth file on the shared control plane belongs to your current task line.
 On the shared control plane, unrelated truth-path edits and untracked workflow docs are foreign active lines by default, not "noise". Inspect their task id, state, `claimed_at`, `claimed_by`, `claimed_thread_id`, links, and nearby review or memory evidence before deciding whether another agent is landing truth.
 Unless you are explicitly taking over, do not delete, rename, stage, or absorb those foreign active lines into your own commit.
+On the same task line, control-plane writes are serial by default. Do not pipeline multiple `move` calls for one task; let each step land, then re-read truth and gates before the next transition.
 Before `rvw`, merge, or `prune`, re-check the worktree against the target `base-ref`; do not keep stacking changes on an obviously stale execution plane.
 Parallel task worktrees are blind by default: do not consume another task worktree's unlanded code, artifacts, local services, or database state through side channels.
 Stale `doi` claims trigger a takeover check, not automatic rollback; inspect the worktree, run `task.sh orphan-scan <base-ref> <task-id>`, then hand off or move state explicitly on the control plane.

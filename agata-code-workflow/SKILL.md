@@ -70,17 +70,19 @@ Do not invent a second state system. The filename state slot is the truth source
 28. Do not infer a legacy truth path such as `docs/plan/` from stray old files. Only deviate from `issues/` when the target project has explicit local workflow rules or current control-plane truth that says so.
 29. Do not write project memory just because you are creating a fresh `pl` / `rs` / `tk`. Memory is for stable milestones, key decisions, freeze points, or tasks that explicitly require `memory: required`.
 30. `task.sh move <id> doi` stamps `claimed_at`, `claimed_by`, and, when the runtime exposes it, `claimed_thread_id`. In same-engine concurrency, thread id is the primary disambiguator.
-31. Worktree teardown is a control-plane reconciliation step. Only prune after the task is already closed into `dne` / `cand` / `arvd`, workflow truth is clean, and the linked worktree no longer carries execution-only diff versus the chosen base ref.
-32. `doi` and `bkd` are not prune targets. `doi` must be released first; `bkd` keeps a frozen worktree unless the control plane explicitly changes direction.
-33. In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are only branch mirrors. They are not the authoritative truth view.
-34. Workflow helpers should read and write truth through the shared control plane by default. `check` only keeps the current-worktree view for truth-pollution checks; every global workflow semantic check still reads from the control plane. `orphan-scan` still inspects the current worktree while comparing against shared refs.
-35. `prune` must not remove the worktree that contains the current shell cwd. If you are standing in the target worktree, `cd` out first.
+31. Control-plane mutation on the same task line must be serial. Do not pre-issue multiple `move` commands for the same task; after each successful move, re-read the task truth and gates before deciding the next transition.
+32. Worktree teardown is a control-plane reconciliation step. Only prune after the task is already closed into `dne` / `cand` / `arvd`, workflow truth is clean, and the linked worktree no longer carries execution-only diff versus the chosen base ref.
+33. `doi` and `bkd` are not prune targets. `doi` must be released first; `bkd` keeps a frozen worktree unless the control plane explicitly changes direction.
+34. In a linked worktree, local `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, and `coauthors.csv` are only branch mirrors. They are not the authoritative truth view.
+35. Workflow helpers should read and write truth through the shared control plane by default. `check` only keeps the current-worktree view for truth-pollution checks; every global workflow semantic check still reads from the control plane. `orphan-scan` still inspects the current worktree while comparing against shared refs.
+36. `prune` must not remove the worktree that contains the current shell cwd. If you are standing in the target worktree, `cd` out first.
 
 ## Control-Plane Concurrency
 
 - A passing `task.sh check` is a semantic verdict, not an ownership verdict. It does not mean every dirty truth file on the shared control plane belongs to your current task line.
 - On the shared control plane, unrelated edits under `issues/`, `docs/reviews/`, `refs/project-memory-aaak.md`, or `coauthors.csv`, plus untracked `tk` / `pl` / `rs` / `rf` / `rp` files, are foreign active lines by default, not "noise".
 - Before touching a foreign active line, inspect the task id, state, `claimed_at`, `claimed_by`, `claimed_thread_id`, links, nearby review or memory anchors, and `coauthors.csv` when present. Use those signals to decide whether someone else is actively landing truth.
+- On the same task line, control-plane writes are serial by default. Do not pipeline `move` calls such as `doi -> pss -> dne`; each step must land, then re-read truth and gates before the next step.
 - Unless you are explicitly taking over, do not delete, rename, stage, or fold a foreign active line into your own commit. Commit only your own truth edits and report the other active line separately.
 
 ## Bundled Script
