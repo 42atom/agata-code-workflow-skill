@@ -47,7 +47,6 @@ state：
 - `tdo`
 - `doi`
 - `rvw`
-- `pss`
 - `dne`
 - `bkd`
 - `cand`
@@ -59,7 +58,7 @@ state：
 - `id` 支持 4 位或 5 位数字；现有 4 位文件无需迁移
 - 同一项目内不允许裸数字碰撞；禁止 `tk0001` 与 `tk00001` 共存
 - `board` 用模块短词或场景码
-- `board` 不得使用 `tdo` / `doi` / `rvw` / `pss` / `dne` / `bkd` / `cand` / `arvd` 这类状态保留词
+- `board` 不得使用 `tdo` / `doi` / `rvw` / `dne` / `bkd` / `cand` / `arvd` 这类状态保留词
 - `slug` 只允许 `[a-z0-9-]`
 - owner / 时间 / 原因进 front matter，不进文件名
 
@@ -138,7 +137,7 @@ handle,owner,engine,role,status,updated_at,note
 
 任务主流状态：
 
-`tdo -> doi -> rvw -> pss -> dne`
+`tdo -> doi -> rvw -> dne`
 
 补充：
 
@@ -178,6 +177,8 @@ review 命名规则：
 - linked worktree 里的这些 truth path 只是该分支镜像，不是权威真相视图
 - linked task worktree 若需要写验证记录、review 草稿或实现笔记，先写在非真相路径；不得直接改上述真相路径里的正式文件
 - `tdo -> doi`、`doi -> rvw|bkd|cand|dne`、`rp` 新建/回合推进、memory 锚点、派单更新都属于控制面动作，必须先在主 checkout 落盘
+- 创建 `task/tkNNNN-*` 分支或对应 task worktree 前，`issues/` 里必须已存在同号 controlling `tk`；禁止先实现后补真相
+- 创建 review 分支或 review worktree 前，必须已存在同号 controlling `tk` 与目标 review 轮次真相
 - `doi` 落盘后，才在该 task 的专属 worktree 中推进实现
 - task worktree 只做代码、测试、生成物和临时草稿，不偷偷改 workflow 状态槽，不把自己当第二控制面
 - `task.sh ls` / `find` / `show` / `new` / `move` / `archive` / `prune` 默认穿透到共享控制面，不以当前 linked worktree 里的镜像 truth path 为准
@@ -192,12 +193,14 @@ review 命名规则：
 - 平行 task worktree 默认双盲；一个 task worktree 不得直接依赖另一个 task worktree 的未落地代码、生成物、本地服务端口或数据库状态
 - 跨 task 交付、协作或 review 邀请，必须先落成控制面可见的共享证据，再由接收方消费；禁止通过跨目录读取另一个 task worktree 走私中间态
 - `rvw` / 复审可在独立 review worktree 中做验证，但 `tk` / `rp` 结论仍回主 checkout 落盘
+- 代码任务收口顺序固定：专属 worktree 完成实现与验证 -> 代码并回目标主线 -> 主单推进到 `dne` -> 清理该任务的 worktree 与本地分支
 - 同一 task 续做时复用原 worktree
 - 任务进入 `dne` / `cand` / `arvd` 且已收口后，应移除对应 worktree；`bkd` 可保留 worktree 但冻结，不得混入别的 task
 - worktree 收尾是控制面对执行面的最后一次对账，不是顺手删目录
 - 优先用 `task.sh prune <task-id> <base-ref>` 收尾；它只做校验和回收，不代替控制面自动改状态
 - `prune` 只接受 `dne` / `cand` / `arvd`；`doi` 必须先释放，`bkd` 默认保留冻结现场
 - `prune` 前必须满足：主 checkout 的 `task.sh check` 通过、`task.sh orphan-scan <base-ref> <task-id>` 无漂移、目标 linked worktree 干净、且相对 `base-ref` 已无执行差异
+- 禁止在“旧进程 + 新代码”混合运行态上给出验证结论；必须先退出旧进程，再在新构建/新运行态上验证
 - `prune` 不得从目标 worktree 自己内部执行；若当前 shell cwd 落在待删 worktree 内，必须先 `cd` 出去
 - `prune` 成功时同时回收 linked worktree 和对应本地 branch；默认不碰 remote branch
 - worktree 只是执行空间，不是任务真相源
@@ -223,11 +226,6 @@ review 命名规则：
 - `rp0061.dne.runtime.review-r1-codex.md`
 - `rp0061.dne.runtime.reply-r1-mobile007kx.md`
 - `rp0061.dne.runtime.review-r2-codex.md`
-
-`pss` 定位：
-
-- `pss` 是机器态，不是人工终态
-- 人工关闭结论仍以 `dne` 为准
 
 ## 8. rvw 入场门槛
 
@@ -371,5 +369,4 @@ docs/
 4. 回复评审：新增 `rp0061.dne.runtime.reply-r1-mobile007kx.md`
 5. 二轮评审：新增 `rp0061.dne.runtime.review-r2-codex.md`
 6. 进入 review：任务文件改名 `tk0061.rvw...`
-7. 验证通过：任务文件改名 `tk0061.pss...`
-8. 人工关闭：任务文件改名 `tk0061.dne...`
+7. 人工关闭：任务文件改名 `tk0061.dne...`

@@ -19,18 +19,17 @@ from typing import Any
 DOC_RE = re.compile(
     r"^(?P<kind>tk|pl|rs|rf|rp)"
     r"(?P<digits>\d{4,5})\."
-    r"(?P<state>tdo|doi|rvw|pss|dne|bkd|cand|arvd)\."
+    r"(?P<state>tdo|doi|rvw|dne|bkd|cand|arvd)\."
     r"(?P<board>[a-z0-9-]+)\."
     r"(?P<slug>[a-z0-9-]+?)"
     r"(?:\.(?P<priority>p[0-2]))?\.md$"
 )
 
-STATE_ORDER = ["doi", "rvw", "bkd", "tdo", "pss", "dne", "cand", "arvd"]
+STATE_ORDER = ["doi", "rvw", "bkd", "tdo", "dne", "cand", "arvd"]
 STATE_LABEL = {
     "tdo": "待做",
     "doi": "进行中",
     "rvw": "评审中",
-    "pss": "已通过",
     "dne": "已完成",
     "bkd": "阻塞",
     "cand": "已取消",
@@ -40,7 +39,6 @@ STATE_TONE = {
     "tdo": "todo",
     "doi": "active",
     "rvw": "review",
-    "pss": "pass",
     "dne": "done",
     "bkd": "blocked",
     "cand": "cancelled",
@@ -55,8 +53,8 @@ KIND_LABEL = {
 }
 PRIORITY_RANK = {"p0": 0, "p1": 1, "p2": 2, "": 9}
 ACTIVE_STATES = {"tdo", "doi", "rvw", "bkd"}
-DONE_STATES = {"pss", "dne"}
-HISTORY_STATES = {"pss", "dne", "cand", "arvd"}
+DONE_STATES = {"dne"}
+HISTORY_STATES = {"dne", "cand", "arvd"}
 STALE_COAUTHOR_SECONDS = 24 * 60 * 60
 
 

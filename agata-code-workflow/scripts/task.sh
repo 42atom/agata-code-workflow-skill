@@ -4,7 +4,7 @@ set -euo pipefail
 
 ######## task workflow helper
 
-VALID_STATES="tdo doi rvw pss dne bkd cand arvd"
+VALID_STATES="tdo doi rvw dne bkd cand arvd"
 VALID_MEMORY_MODES="none required done"
 STALE_COAUTHOR_SECONDS=86400
 STALE_DOI_SECONDS=259200
@@ -257,8 +257,7 @@ can_transition() {
   case "$from" in
     tdo) [[ "$to" == "doi" || "$to" == "cand" ]] ;;
     doi) [[ "$to" == "rvw" || "$to" == "bkd" || "$to" == "cand" ]] ;;
-    rvw) [[ "$to" == "pss" || "$to" == "bkd" || "$to" == "doi" || "$to" == "cand" ]] ;;
-    pss) [[ "$to" == "dne" ]] ;;
+    rvw) [[ "$to" == "dne" || "$to" == "bkd" || "$to" == "doi" || "$to" == "cand" ]] ;;
     bkd) [[ "$to" == "doi" || "$to" == "rvw" || "$to" == "cand" ]] ;;
     dne) [[ "$to" == "arvd" ]] ;;
     cand) [[ "$to" == "arvd" ]] ;;
@@ -1090,7 +1089,7 @@ check_rp_names() {
 
   while IFS= read -r file; do
     base="$(basename "$file")"
-    [[ "$base" =~ ^rp${ID_DIGITS_RE}\.(tdo|doi|rvw|pss|dne|bkd|cand|arvd)\.[a-z0-9-]+\.(review-r[0-9]+-[a-z0-9-]+|reply-r[0-9]+-[a-z0-9-]+)\.md$ ]] \
+    [[ "$base" =~ ^rp${ID_DIGITS_RE}\.(tdo|doi|rvw|dne|bkd|cand|arvd)\.[a-z0-9-]+\.(review-r[0-9]+-[a-z0-9-]+|reply-r[0-9]+-[a-z0-9-]+)\.md$ ]] \
       || die "invalid review filename: $file"
   done < <(find "$root/docs/reviews" -maxdepth 1 -type f -name '*.md' | sort)
 }

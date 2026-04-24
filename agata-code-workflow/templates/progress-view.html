@@ -25,7 +25,6 @@
         --color-active: #006adc;
         --color-review: #7c3aed;
         --color-blocked: #f97316;
-        --color-pass: #059669;
         --color-done: #10b981;
         --color-cancelled: #6b7280;
 
@@ -495,7 +494,6 @@
         'tdo': { icon: 'icon-circle', color: 'var(--color-todo)' },
         'doi': { icon: 'icon-half', color: 'var(--color-active)' },
         'rvw': { icon: 'icon-half', style: 'opacity: 0.8; animation: pulse 2s infinite;', color: 'var(--color-review)' },
-        'pss': { icon: 'icon-check', color: 'var(--color-pass)' },
         'dne': { icon: 'icon-check', color: 'var(--color-done)' },
         'bkd': { icon: 'icon-full', color: 'var(--color-blocked)' },
         'cand': { icon: 'icon-circle', style: 'opacity: 0.5', color: 'var(--color-cancelled)' },
@@ -758,7 +756,7 @@
         const renderStateGroups = (items) => {
           if (items.length === 0) return '';
           const groups = {};
-          const stateOrder = ['doi', 'rvw', 'bkd', 'tdo', 'pss', 'dne', 'cand', 'arvd'];
+          const stateOrder = ['doi', 'rvw', 'bkd', 'tdo', 'dne', 'cand', 'arvd'];
 
           items.forEach(item => {
             const s = item.state;
